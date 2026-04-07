@@ -39,7 +39,7 @@ export default function Login({ onLogin }: LoginProps) {
           <div className="flex justify-center mb-4">
             <div className="w-24 h-24 bg-white rounded-2xl shadow-lg flex items-center justify-center p-4">
               <img
-                src="/src/public/logoicon.png"
+                src="/logoicon.png"
                 alt="FDTU AL Logo"
                 className="w-full h-full object-contain"
               />

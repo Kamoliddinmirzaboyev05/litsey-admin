@@ -43,7 +43,7 @@ export function Navbar() {
           </div>
           <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#0d89b1]/20">
             <img
-              src="/src/public/logoicon.png"
+              src="/logoicon.png"
               alt="Admin"
               className="w-full h-full object-cover"
             />

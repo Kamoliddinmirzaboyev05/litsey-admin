@@ -17,7 +17,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'build',
+    outDir: 'dist',
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
