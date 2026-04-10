@@ -59,10 +59,10 @@ export function Sidebar() {
       <aside
         className={`${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 fixed lg:static w-[280px] h-screen bg-white border-r border-gray-200 flex flex-col transition-transform duration-300 z-40`}
+        } lg:translate-x-0 fixed lg:static w-[280px] h-screen bg-white dark:bg-[#1f2937] border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 z-40`}
       >
         {/* Logo */}
-        <div className="h-[60px] flex items-center justify-center border-b border-gray-200 px-4">
+        <div className="h-[60px] flex items-center justify-center border-b border-gray-200 dark:border-gray-700 px-4">
           <div className="flex items-center gap-3">
             <img
               src="/logoicon.png"
@@ -71,7 +71,7 @@ export function Sidebar() {
             />
             <div className="text-center">
               <h1 className="text-lg font-bold text-[#0d89b1]">FDTU AL</h1>
-              <p className="text-xs text-[#64748b]">Admin Panel</p>
+              <p className="text-xs text-[#64748b] dark:text-gray-400">Admin Panel</p>
             </div>
           </div>
         </div>
@@ -88,7 +88,7 @@ export function Sidebar() {
                     `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       isActive
                         ? "bg-[#0d89b1] text-white"
-                        : "text-[#1f2937] hover:bg-gray-100"
+                        : "text-[#1f2937] dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
                     }`
                   }
                 >
@@ -102,7 +102,7 @@ export function Sidebar() {
             <li>
               <button
                 onClick={() => setIsEducationOpen(!isEducationOpen)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-[#1f2937] hover:bg-gray-100 transition-colors"
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-[#1f2937] dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <BookOpen className="w-5 h-5" />
@@ -117,12 +117,12 @@ export function Sidebar() {
               {isEducationOpen && (
                 <ul className="mt-1 ml-12 space-y-1">
                   <li>
-                    <button className="w-full text-left px-4 py-2 text-sm text-[#64748b] hover:text-[#0d89b1] transition-colors">
+                    <button className="w-full text-left px-4 py-2 text-sm text-[#64748b] dark:text-gray-400 hover:text-[#0d89b1] transition-colors">
                       Fanlar
                     </button>
                   </li>
                   <li>
-                    <button className="w-full text-left px-4 py-2 text-sm text-[#64748b] hover:text-[#0d89b1] transition-colors">
+                    <button className="w-full text-left px-4 py-2 text-sm text-[#64748b] dark:text-gray-400 hover:text-[#0d89b1] transition-colors">
                       Dars jadvali
                     </button>
                   </li>
@@ -132,7 +132,7 @@ export function Sidebar() {
 
             {/* Galereya */}
             <li>
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-[#1f2937] hover:bg-gray-100 transition-colors">
+              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-[#1f2937] dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                 <Image className="w-5 h-5" />
                 <span className="text-sm font-medium">Galereya</span>
               </button>
@@ -141,10 +141,10 @@ export function Sidebar() {
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           >
             <LogOut className="w-5 h-5" />
             <span className="text-sm font-medium">Chiqish</span>

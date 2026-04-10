@@ -1,108 +1,227 @@
-import { useState } from "react";
-import { Plus, Search, Edit, Trash2, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Search, Edit, Trash2, X, Loader2 } from "lucide-react";
 import { Dialog } from "../components/ui/dialog";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { ImageUpload } from "../components/ImageUpload";
+import { toast } from "sonner";
+import { API_BASE_URL, getImageUrl } from "../../config/api";
+
+interface NewsTranslation {
+  title: string;
+  short_description: string;
+  content: string;
+}
 
 interface News {
   id: number;
-  title: string;
-  content: string;
+  slug: string;
+  translations: {
+    uz: NewsTranslation;
+    uz_cyrl: NewsTranslation;
+    ru: NewsTranslation;
+    en: NewsTranslation;
+  };
   image: string;
-  date: string;
-  category: string;
-  status: "Aktiv" | "Nofaol";
+  views_count: number;
+  status: "draft" | "published";
+  status_display: string;
+  is_featured: boolean;
+  published_at: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
 }
 
-const initialNews: News[] = [
-  {
-    id: 1,
-    title: "Yangi o'quv yili boshlanishi",
-    content: "2026-2027 o'quv yili rasmiy ravishda boshlandi...",
-    image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=300&h=200&fit=crop",
-    date: "2026-04-05",
-    category: "Ta'lim",
-    status: "Aktiv",
-  },
-  {
-    id: 2,
-    title: "Olimpiada g'oliblari e'lon qilindi",
-    content: "Respublika olimpiadasida litseyimiz o'quvchilari yuqori...",
-    image: "https://images.unsplash.com/photo-1567168544813-cc03465b4fa8?w=300&h=200&fit=crop",
-    date: "2026-04-03",
-    category: "Yutuqlar",
-    status: "Aktiv",
-  },
-  {
-    id: 3,
-    title: "Ochiq eshiklar kuni",
-    content: "Litseyda ochiq eshiklar kuni bo'lib o'tdi...",
-    image: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=300&h=200&fit=crop",
-    date: "2026-04-01",
-    category: "Tadbirlar",
-    status: "Aktiv",
-  },
-];
-
 export default function Yangiliklar() {
-  const [news, setNews] = useState<News[]>(initialNews);
+  const [news, setNews] = useState<News[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNews, setEditingNews] = useState<News | null>(null);
-  const [formData, setFormData] = useState<Partial<News>>({
-    title: "",
-    content: "",
-    image: "",
-    date: "",
-    category: "",
-    status: "Aktiv",
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    status: "draft",
+    is_featured: false,
+    published_at: new Date().toISOString().split("T")[0],
+    title_uz: "",
+    title_ru: "",
+    title_en: "",
+    title_uz_cyrl: "",
+    short_description_uz: "",
+    short_description_ru: "",
+    content_uz: "",
+    content_ru: "",
+    content_en: "",
+    image: null as File | string | null,
   });
 
-  const filteredNews = news.filter((item) =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    fetchNews();
+  }, []);
+
+  const fetchNews = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/news/`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        // API javobi massiv bo'lsa uni ishlatamiz, agar pagination bo'lsa results maydonini olamiz
+        if (Array.isArray(data)) {
+          setNews(data);
+        } else if (data && typeof data === "object" && Array.isArray(data.results)) {
+          setNews(data.results);
+        } else {
+          console.warn("API response format error (not array or results):", data);
+          setNews([]);
+        }
+      } else {
+        console.error("API error response:", data);
+        toast.error(data.detail || "Yangiliklarni yuklashda xatolik");
+        setNews([]);
+      }
+    } catch (error) {
+      console.error("Network or parsing error:", error);
+      toast.error("Server bilan bog'lanishda xatolik");
+      setNews([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredNews = Array.isArray(news) 
+    ? news.filter((item) => {
+        const title = item?.translations?.uz?.title || "";
+        return title.toLowerCase().includes(searchQuery.toLowerCase());
+      })
+    : [];
 
   const handleAdd = () => {
     setEditingNews(null);
     setFormData({
-      title: "",
-      content: "",
-      image: "",
-      date: new Date().toISOString().split("T")[0],
-      category: "",
-      status: "Aktiv",
+      status: "draft",
+      is_featured: false,
+      published_at: new Date().toISOString().split("T")[0],
+      title_uz: "",
+      title_ru: "",
+      title_en: "",
+      title_uz_cyrl: "",
+      short_description_uz: "",
+      short_description_ru: "",
+      content_uz: "",
+      content_ru: "",
+      content_en: "",
+      image: null,
     });
     setIsModalOpen(true);
   };
 
   const handleEdit = (item: News) => {
     setEditingNews(item);
-    setFormData(item);
+    setFormData({
+      status: item.status,
+      is_featured: item.is_featured,
+      published_at: item.published_at ? item.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
+      title_uz: item.translations?.uz?.title || "",
+      title_ru: item.translations?.ru?.title || "",
+      title_en: item.translations?.en?.title || "",
+      title_uz_cyrl: item.translations?.uz_cyrl?.title || "",
+      short_description_uz: item.translations?.uz?.short_description || "",
+      short_description_ru: item.translations?.ru?.short_description || "",
+      content_uz: item.translations?.uz?.content || "",
+      content_ru: item.translations?.ru?.content || "",
+      content_en: item.translations?.en?.content || "",
+      image: getImageUrl(item.image),
+    });
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (slug: string) => {
     if (confirm("Ushbu yangilikni o'chirmoqchimisiz?")) {
-      setNews(news.filter((item) => item.id !== id));
+      try {
+        const token = localStorage.getItem("auth_token");
+        const response = await fetch(`${API_BASE_URL}/news/${slug}/`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          toast.success("Yangilik o'chirildi");
+          fetchNews();
+        } else {
+          toast.error("O'chirishda xatolik yuz berdi");
+        }
+      } catch (error) {
+        toast.error("Server bilan bog'lanishda xatolik");
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingNews) {
-      setNews(
-        news.map((item) =>
-          item.id === editingNews.id ? { ...item, ...formData } : item
-        )
-      );
-    } else {
-      const newItem: News = {
-        id: Math.max(...news.map((n) => n.id)) + 1,
-        ...formData as News,
-      };
-      setNews([newItem, ...news]);
+    setIsSubmitting(true);
+
+    const token = localStorage.getItem("auth_token");
+    const data = new FormData();
+
+    data.append("status", formData.status);
+    data.append("is_featured", formData.is_featured ? "true" : "false");
+    
+    // published_at ISO format (Backend uchun ISO string)
+    const publishedAt = new Date(formData.published_at);
+    if (!isNaN(publishedAt.getTime())) {
+      data.append("published_at", publishedAt.toISOString());
     }
-    setIsModalOpen(false);
+
+    // Required field title_uz
+    if (formData.title_uz) data.append("title_uz", formData.title_uz);
+    if (formData.title_ru) data.append("title_ru", formData.title_ru);
+    if (formData.title_en) data.append("title_en", formData.title_en);
+    if (formData.title_uz_cyrl) data.append("title_uz_cyrl", formData.title_uz_cyrl);
+    
+    if (formData.short_description_uz) data.append("short_description_uz", formData.short_description_uz);
+    if (formData.short_description_ru) data.append("short_description_ru", formData.short_description_ru);
+    
+    if (formData.content_uz) data.append("content_uz", formData.content_uz);
+    if (formData.content_ru) data.append("content_ru", formData.content_ru);
+    if (formData.content_en) data.append("content_en", formData.content_en);
+
+    if (formData.image instanceof File) {
+      data.append("image", formData.image);
+    }
+
+    try {
+      const url = editingNews
+        ? `${API_BASE_URL}/news/${editingNews.slug}/`
+        : `${API_BASE_URL}/news/`;
+      const method = editingNews ? "PATCH" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: data,
+      });
+
+      if (response.ok) {
+        toast.success(
+          editingNews ? "Yangilik tahrirlandi" : "Yangilik qo'shildi"
+        );
+        setIsModalOpen(false);
+        fetchNews();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.detail || "Xatolik yuz berdi");
+      }
+    } catch (error) {
+      toast.error("Server bilan bog'lanishda xatolik");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -110,8 +229,8 @@ export default function Yangiliklar() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#1f2937]">Yangiliklar</h1>
-          <p className="text-[#64748b] mt-1">Yangiliklar boshqaruvi</p>
+          <h1 className="text-2xl font-bold text-[#1f2937] dark:text-gray-100">Yangiliklar</h1>
+          <p className="text-[#64748b] dark:text-gray-400 mt-1">Yangiliklar boshqaruvi</p>
         </div>
         <button
           onClick={handleAdd}
@@ -123,100 +242,115 @@ export default function Yangiliklar() {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="bg-white dark:bg-[#1f2937] rounded-lg border border-gray-200 dark:border-gray-700 p-4 transition-colors">
         <div className="flex items-center gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748b]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748b] dark:text-gray-400" />
             <input
               type="text"
               placeholder="Yangilik qidirish..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-[#f8fafc] border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0d89b1]"
+              className="w-full pl-10 pr-4 py-2 bg-[#f8fafc] dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 dark:placeholder-gray-500"
             />
           </div>
         </div>
       </div>
 
       {/* News Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-[#1f2937] rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-[#f8fafc] border-b border-gray-200">
+            <thead className="bg-[#f8fafc] dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
                   Rasm
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] uppercase tracking-wider">
-                  Sarlavha
+                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
+                  Sarlavha (UZ)
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] uppercase tracking-wider">
-                  Kategoriya
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
                   Sana
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
                   Harakatlar
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredNews.map((item) => (
-                <tr key={item.id} className="hover:bg-[#f8fafc] transition-colors">
-                  <td className="px-6 py-4">
-                    <ImageWithFallback
-                      src={item.image}
-                      alt={item.title}
-                      className="w-16 h-12 object-cover rounded"
-                    />
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-[#1f2937]">
-                      {item.title}
-                    </div>
-                    <div className="text-xs text-[#64748b] mt-1 line-clamp-1">
-                      {item.content}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-[#64748b]">{item.category}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-[#64748b]">{item.date}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 text-xs rounded ${
-                        item.status === "Aktiv"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="p-2 text-[#0d89b1] hover:bg-blue-50 rounded transition-colors"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-10 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="w-8 h-8 text-[#0d89b1] animate-spin" />
+                      <p className="text-sm text-[#64748b] dark:text-gray-400">Yuklanmoqda...</p>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : filteredNews.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-10 text-center">
+                    <p className="text-sm text-[#64748b] dark:text-gray-400">Yangiliklar topilmadi</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredNews.map((item) => (
+                  <tr key={item.id} className="hover:bg-[#f8fafc] dark:hover:bg-gray-800/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <ImageWithFallback
+                        src={getImageUrl(item.image)}
+                        alt={item.translations?.uz?.title}
+                        className="w-16 h-12 object-cover rounded"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-[#1f2937] dark:text-gray-100">
+                        {item.translations?.uz?.title}
+                      </div>
+                      {item.is_featured && (
+                        <span className="text-[10px] bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded mt-1 inline-block">
+                          Asosiy
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-[#64748b] dark:text-gray-400">
+                        {item.published_at ? new Date(item.published_at).toLocaleDateString() : "-"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-1 text-xs rounded ${
+                          item.status === "published"
+                            ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400"
+                        }`}
+                      >
+                        {item.status === "published" ? "Nashr qilingan" : "Qoralama"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="p-2 text-[#0d89b1] hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.slug)}
+                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -226,120 +360,228 @@ export default function Yangiliklar() {
       {isModalOpen && (
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-[#1f2937]">
+            <div className="bg-white dark:bg-[#1f2937] rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto border dark:border-gray-700 shadow-xl">
+              <div className="sticky top-0 bg-white dark:bg-[#1f2937] border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10 transition-colors">
+                <h2 className="text-lg font-semibold text-[#1f2937] dark:text-gray-100">
                   {editingNews ? "Yangilikni tahrirlash" : "Yangi yangilik qo'shish"}
                 </h2>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors text-[#64748b] dark:text-gray-400"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#1f2937] mb-2">
-                    Sarlavha
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#0d89b1]"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[#1f2937] mb-2">
-                    Mazmuni
-                  </label>
-                  <textarea
-                    value={formData.content}
-                    onChange={(e) =>
-                      setFormData({ ...formData, content: e.target.value })
-                    }
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#0d89b1]"
-                    required
-                  />
-                </div>
-
-                <ImageUpload
-                  label="Rasm"
-                  value={formData.image || ""}
-                  onChange={(value) => setFormData({ ...formData, image: value })}
-                  placeholder="Yangilik rasmini yuklash uchun bosing"
-                />
-
-                <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-[#1f2937] mb-2">
-                      Kategoriya
+                    <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+                      Status
                     </label>
-                    <input
-                      type="text"
-                      value={formData.category}
+                    <select
+                      value={formData.status}
                       onChange={(e) =>
-                        setFormData({ ...formData, category: e.target.value })
+                        setFormData({ ...formData, status: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#0d89b1]"
-                      required
-                    />
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                    >
+                      <option value="draft">Qoralama (Draft)</option>
+                      <option value="published">Nashr qilish (Published)</option>
+                    </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-[#1f2937] mb-2">
-                      Sana
+                    <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+                      Asosiy yangilik
+                    </label>
+                    <select
+                      value={String(formData.is_featured)}
+                      onChange={(e) =>
+                        setFormData({ ...formData, is_featured: e.target.value === "true" })
+                      }
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                    >
+                      <option value="false">Yo'q</option>
+                      <option value="true">Ha</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+                      Nashr sanasi
                     </label>
                     <input
                       type="date"
-                      value={formData.date}
+                      value={formData.published_at}
                       onChange={(e) =>
-                        setFormData({ ...formData, date: e.target.value })
+                        setFormData({ ...formData, published_at: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#0d89b1]"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
                       required
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-[#1f2937] mb-2">
-                    Status
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        status: e.target.value as "Aktiv" | "Nofaol",
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#0d89b1]"
-                  >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Nofaol">Nofaol</option>
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Titles */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Sarlavhalar</h3>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
+                        Sarlavha (UZ) *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.title_uz}
+                        onChange={(e) =>
+                          setFormData({ ...formData, title_uz: e.target.value })
+                        }
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
+                        Sarlavha (RU)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.title_ru}
+                        onChange={(e) =>
+                          setFormData({ ...formData, title_ru: e.target.value })
+                        }
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
+                        Sarlavha (EN)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.title_en}
+                        onChange={(e) =>
+                          setFormData({ ...formData, title_en: e.target.value })
+                        }
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
+                        Sarlavha (UZ Kirill)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.title_uz_cyrl}
+                        onChange={(e) =>
+                          setFormData({ ...formData, title_uz_cyrl: e.target.value })
+                        }
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Short Descriptions */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Qisqa tavsiflar</h3>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
+                        Qisqa tavsif (UZ)
+                      </label>
+                      <textarea
+                        value={formData.short_description_uz}
+                        onChange={(e) =>
+                          setFormData({ ...formData, short_description_uz: e.target.value })
+                        }
+                        rows={3}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
+                        Qisqa tavsif (RU)
+                      </label>
+                      <textarea
+                        value={formData.short_description_ru}
+                        onChange={(e) =>
+                          setFormData({ ...formData, short_description_ru: e.target.value })
+                        }
+                        rows={3}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4">
+                {/* Full Content */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">To'liq matnlar</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
+                        Matn (UZ) *
+                      </label>
+                      <textarea
+                        value={formData.content_uz}
+                        onChange={(e) =>
+                          setFormData({ ...formData, content_uz: e.target.value })
+                        }
+                        rows={6}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
+                        Matn (RU)
+                      </label>
+                      <textarea
+                        value={formData.content_ru}
+                        onChange={(e) =>
+                          setFormData({ ...formData, content_ru: e.target.value })
+                        }
+                        rows={6}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
+                        Matn (EN)
+                      </label>
+                      <textarea
+                        value={formData.content_en}
+                        onChange={(e) =>
+                          setFormData({ ...formData, content_en: e.target.value })
+                        }
+                        rows={6}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <ImageUpload
+                  label="Asosiy rasm"
+                  value={formData.image}
+                  onChange={(file) => setFormData({ ...formData, image: file })}
+                  placeholder="Yangilik rasmini yuklash uchun bosing"
+                />
+
+                <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-white dark:bg-[#1f2937] border-t border-gray-200 dark:border-gray-700 py-4 z-10 transition-colors">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 border border-gray-200 text-[#1f2937] rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-6 py-2 border border-gray-200 dark:border-gray-700 text-[#1f2937] dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   >
                     Bekor qilish
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-[#0d89b1] text-white rounded-lg hover:bg-[#0a6d8f] transition-colors"
+                    disabled={isSubmitting}
+                    className="px-8 py-2 bg-[#0d89b1] text-white rounded-lg hover:bg-[#0a6d8f] transition-colors flex items-center gap-2 disabled:opacity-50"
                   >
+                    {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                     {editingNews ? "Saqlash" : "Qo'shish"}
                   </button>
                 </div>
