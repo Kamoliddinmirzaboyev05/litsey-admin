@@ -56,48 +56,54 @@ export default function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0d89b1] to-[#095a75] dark:from-[#095a75] dark:to-[#063a4d] flex items-center justify-center p-4 transition-colors">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen relative overflow-hidden bg-[#0a192f] flex items-center justify-center p-4 transition-colors">
+      {/* Abstract Background Shapes */}
+      <div className="absolute top-[-10%] -left-[10%] w-[40%] h-[40%] bg-[#0d89b1]/20 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-[-10%] -right-[10%] w-[40%] h-[40%] bg-[#0d89b1]/10 rounded-full blur-[120px] animate-pulse delay-700" />
+      
+      <div className="w-full max-w-md relative z-10">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-24 h-24 bg-white dark:bg-[#1f2937] rounded-2xl shadow-lg flex items-center justify-center p-4 transition-colors">
+          <div className="flex justify-center mb-6">
+            <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-3xl shadow-2xl flex items-center justify-center p-5 border border-white/20 transition-all hover:scale-105 duration-300">
               <img
                 src="/logoicon.png"
                 alt="FDTU AL Logo"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain filter drop-shadow-lg"
               />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">FDTU AL</h1>
-          <p className="text-white/80">Admin Panel</p>
+          <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">FDTU AL</h1>
+          <p className="text-white/60 font-medium tracking-wide uppercase text-sm">Boshqaruv Paneli</p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-white dark:bg-[#1f2937] rounded-xl shadow-2xl p-8 transition-colors border dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-[#1f2937] dark:text-gray-100 mb-6 text-center">
+        <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] p-10 transition-all border border-white/10">
+          <h2 className="text-2xl font-bold text-white mb-8 text-center">
             Tizimga kirish
           </h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-lg text-red-600 dark:text-red-400 text-sm">
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm text-center backdrop-blur-sm animate-shake">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Username */}
-            <div>
-              <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-white/70 ml-1">
                 Login
               </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748b] dark:text-gray-400" />
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300">
+                  <User className="w-5 h-5 text-white/40 group-focus-within:text-[#0d89b1]" />
+                </div>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] focus:ring-2 focus:ring-[#0d89b1]/20 transition-all dark:text-gray-100 dark:placeholder-gray-500"
+                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:border-[#0d89b1] focus:ring-4 focus:ring-[#0d89b1]/10 transition-all text-white placeholder-white/20"
                   placeholder="Loginni kiriting"
                   required
                 />
@@ -105,24 +111,26 @@ export default function Login({ onLogin }: LoginProps) {
             </div>
 
             {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-white/70 ml-1">
                 Parol
               </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748b] dark:text-gray-400" />
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300">
+                  <Lock className="w-5 h-5 text-white/40 group-focus-within:text-[#0d89b1]" />
+                </div>
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] focus:ring-2 focus:ring-[#0d89b1]/20 transition-all dark:text-gray-100 dark:placeholder-gray-500"
+                  className="w-full pl-12 pr-14 py-4 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:border-[#0d89b1] focus:ring-4 focus:ring-[#0d89b1]/10 transition-all text-white placeholder-white/20"
                   placeholder="Parolni kiriting"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748b] hover:text-[#0d89b1] transition-colors dark:text-gray-400"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors p-1"
                 >
                   {showPassword ? (
                     <EyeOff className="w-5 h-5" />
@@ -137,36 +145,25 @@ export default function Login({ onLogin }: LoginProps) {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#0d89b1] text-white rounded-lg hover:bg-[#0a6d8f] transition-colors disabled:opacity-50 font-medium shadow-lg"
+              className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-[#0d89b1] hover:bg-[#0a6d8f] text-white rounded-2xl transition-all duration-300 disabled:opacity-50 font-bold text-lg shadow-[0_10px_20px_rgba(13,137,177,0.3)] active:scale-[0.98] mt-8"
             >
               {isLoading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Kirilmoqda...
+                  <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                  Tekshirilmoqda...
                 </>
               ) : (
                 <>
-                  <LogIn className="w-5 h-5" />
+                  <LogIn className="w-6 h-6" />
                   Kirish
                 </>
               )}
             </button>
           </form>
-
-          {/* Demo credentials hint */}
-          <div className="mt-6 p-3 bg-[#f8fafc] dark:bg-gray-800/50 rounded-lg text-center transition-colors">
-            <p className="text-sm text-[#64748b] dark:text-gray-400">
-              Tizimga kirish uchun:
-            </p>
-            <p className="text-sm font-medium text-[#1f2937] dark:text-gray-100 mt-1">
-              Login: <span className="text-[#0d89b1]">superadmin</span> | Parol:{" "}
-              <span className="text-[#0d89b1]">superadmin</span>
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-white/60 text-sm mt-8">
+        <p className="text-center text-white/30 text-sm mt-10 font-medium">
           © 2026 FDTU AL. Barcha huquqlar himoyalangan.
         </p>
       </div>
