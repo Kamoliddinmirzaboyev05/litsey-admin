@@ -33,10 +33,10 @@ export default function Login({ onLogin }: LoginProps) {
       const data = await response.json();
 
       if (response.ok) {
-        // Store auth token in localStorage
-        localStorage.setItem("auth_token", data.access);
-        localStorage.setItem("refresh_token", data.refresh);
-        localStorage.setItem(
+        // Store auth token in sessionStorage
+        sessionStorage.setItem("auth_token", data.access);
+        sessionStorage.setItem("refresh_token", data.refresh);
+        sessionStorage.setItem(
           "auth_user",
           JSON.stringify({
             username: username,

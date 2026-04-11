@@ -19,7 +19,6 @@ interface News {
     uz: NewsTranslation;
     uz_cyrl: NewsTranslation;
     ru: NewsTranslation;
-    en: NewsTranslation;
   };
   image: string;
   views_count: number;
@@ -46,13 +45,11 @@ export default function Yangiliklar() {
     published_at: new Date().toISOString().split("T")[0],
     title_uz: "",
     title_ru: "",
-    title_en: "",
     title_uz_cyrl: "",
     short_description_uz: "",
     short_description_ru: "",
     content_uz: "",
     content_ru: "",
-    content_en: "",
     image: null as File | string | null,
   });
 
@@ -105,13 +102,11 @@ export default function Yangiliklar() {
       published_at: new Date().toISOString().split("T")[0],
       title_uz: "",
       title_ru: "",
-      title_en: "",
       title_uz_cyrl: "",
       short_description_uz: "",
       short_description_ru: "",
       content_uz: "",
       content_ru: "",
-      content_en: "",
       image: null,
     });
     setIsModalOpen(true);
@@ -125,13 +120,11 @@ export default function Yangiliklar() {
       published_at: item.published_at ? item.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
       title_uz: item.translations?.uz?.title || "",
       title_ru: item.translations?.ru?.title || "",
-      title_en: item.translations?.en?.title || "",
       title_uz_cyrl: item.translations?.uz_cyrl?.title || "",
       short_description_uz: item.translations?.uz?.short_description || "",
       short_description_ru: item.translations?.ru?.short_description || "",
       content_uz: item.translations?.uz?.content || "",
       content_ru: item.translations?.ru?.content || "",
-      content_en: item.translations?.en?.content || "",
       image: getImageUrl(item.image),
     });
     setIsModalOpen(true);
@@ -140,7 +133,7 @@ export default function Yangiliklar() {
   const handleDelete = async (slug: string) => {
     if (confirm("Ushbu yangilikni o'chirmoqchimisiz?")) {
       try {
-        const token = localStorage.getItem("auth_token");
+        const token = sessionStorage.getItem("auth_token");
         const response = await fetch(`${API_BASE_URL}/news/${slug}/`, {
           method: "DELETE",
           headers: {
@@ -164,7 +157,7 @@ export default function Yangiliklar() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const token = localStorage.getItem("auth_token");
+    const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
 
     data.append("status", formData.status);
@@ -179,7 +172,6 @@ export default function Yangiliklar() {
     // Required field title_uz
     if (formData.title_uz) data.append("title_uz", formData.title_uz);
     if (formData.title_ru) data.append("title_ru", formData.title_ru);
-    if (formData.title_en) data.append("title_en", formData.title_en);
     if (formData.title_uz_cyrl) data.append("title_uz_cyrl", formData.title_uz_cyrl);
     
     if (formData.short_description_uz) data.append("short_description_uz", formData.short_description_uz);
@@ -187,7 +179,6 @@ export default function Yangiliklar() {
     
     if (formData.content_uz) data.append("content_uz", formData.content_uz);
     if (formData.content_ru) data.append("content_ru", formData.content_ru);
-    if (formData.content_en) data.append("content_en", formData.content_en);
 
     if (formData.image instanceof File) {
       data.append("image", formData.image);
@@ -456,19 +447,6 @@ export default function Yangiliklar() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
-                        Sarlavha (EN)
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.title_en}
-                        onChange={(e) =>
-                          setFormData({ ...formData, title_en: e.target.value })
-                        }
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
                         Sarlavha (UZ Kirill)
                       </label>
                       <input
@@ -517,7 +495,7 @@ export default function Yangiliklar() {
                 {/* Full Content */}
                 <div className="space-y-4">
                   <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">To'liq matnlar</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
                         Matn (UZ) *
@@ -540,19 +518,6 @@ export default function Yangiliklar() {
                         value={formData.content_ru}
                         onChange={(e) =>
                           setFormData({ ...formData, content_ru: e.target.value })
-                        }
-                        rows={6}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
-                        Matn (EN)
-                      </label>
-                      <textarea
-                        value={formData.content_en}
-                        onChange={(e) =>
-                          setFormData({ ...formData, content_en: e.target.value })
                         }
                         rows={6}
                         className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"

@@ -3,6 +3,7 @@ import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import { router } from "./routes";
 import { Toaster } from "sonner";
+import { SettingsProvider } from "./context/SettingsContext";
 
 export default function App() {
   const { isAuthenticated, login } = useAuth();
@@ -17,9 +18,9 @@ export default function App() {
   }
 
   return (
-    <>
+    <SettingsProvider>
       <RouterProvider router={router} />
       <Toaster position="top-right" />
-    </>
+    </SettingsProvider>
   );
 }

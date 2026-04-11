@@ -15,7 +15,7 @@ interface AdmissionSettings {
 const initialSettings: AdmissionSettings = {
   quota: 120,
   minScore: 75,
-  examSubjects: "Matematika, Fizika, Ingliz tili",
+  examSubjects: "Matematika, Fizika",
   requirements:
     "O'quvchi 9-sinfni muvaffaqiyatli tamomlagan bo'lishi kerak. Imtihonlarda minimal ball to'plagan bo'lishi shart.",
   examDate: "2026-08-15",
@@ -135,7 +135,7 @@ export default function Qabul() {
                 setSettings({ ...settings, examSubjects: e.target.value })
               }
               className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
-              placeholder="Masalan: Matematika, Fizika, Ingliz tili"
+              placeholder="Masalan: Matematika, Fizika"
               required
             />
           </div>

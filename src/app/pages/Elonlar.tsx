@@ -20,7 +20,6 @@ interface Announcement {
     uz: AnnouncementTranslation;
     uz_cyrl: AnnouncementTranslation;
     ru: AnnouncementTranslation;
-    en: AnnouncementTranslation;
   };
   image: string;
   status: "draft" | "published" | "archived";
@@ -46,7 +45,6 @@ export default function Elonlar() {
     expires_at: "",
     title_uz: "",
     title_ru: "",
-    title_en: "",
     title_uz_cyrl: "",
     short_description_uz: "",
     short_description_ru: "",
@@ -91,7 +89,6 @@ export default function Elonlar() {
       expires_at: "",
       title_uz: "",
       title_ru: "",
-      title_en: "",
       title_uz_cyrl: "",
       short_description_uz: "",
       short_description_ru: "",
@@ -111,7 +108,6 @@ export default function Elonlar() {
       expires_at: item.expires_at ? item.expires_at.split("T")[0] : "",
       title_uz: item.translations?.uz?.title || "",
       title_ru: item.translations?.ru?.title || "",
-      title_en: item.translations?.en?.title || "",
       title_uz_cyrl: item.translations?.uz_cyrl?.title || "",
       short_description_uz: item.translations?.uz?.short_description || "",
       short_description_ru: item.translations?.ru?.short_description || "",
@@ -125,7 +121,7 @@ export default function Elonlar() {
   const handleDelete = async (slug: string) => {
     if (confirm("Ushbu e'lonni o'chirmoqchimisiz?")) {
       try {
-        const token = localStorage.getItem("auth_token");
+        const token = sessionStorage.getItem("auth_token");
         const response = await fetch(`${API_BASE_URL}/announcements/${slug}/`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
@@ -146,7 +142,7 @@ export default function Elonlar() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const token = localStorage.getItem("auth_token");
+    const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
 
     data.append("status", formData.status);
@@ -166,7 +162,6 @@ export default function Elonlar() {
 
     if (formData.title_uz) data.append("title_uz", formData.title_uz);
     if (formData.title_ru) data.append("title_ru", formData.title_ru);
-    if (formData.title_en) data.append("title_en", formData.title_en);
     if (formData.title_uz_cyrl) data.append("title_uz_cyrl", formData.title_uz_cyrl);
     
     if (formData.short_description_uz) data.append("short_description_uz", formData.short_description_uz);
@@ -433,15 +428,6 @@ export default function Elonlar() {
                         type="text"
                         value={formData.title_ru}
                         onChange={(e) => setFormData({ ...formData, title_ru: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">EN</label>
-                      <input
-                        type="text"
-                        value={formData.title_en}
-                        onChange={(e) => setFormData({ ...formData, title_en: e.target.value })}
                         className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
                       />
                     </div>

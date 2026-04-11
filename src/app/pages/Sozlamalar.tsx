@@ -26,11 +26,6 @@ interface Settings {
       full_name: string;
       address: string;
     };
-    en: {
-      short_name: string;
-      full_name: string;
-      address: string;
-    };
   };
 }
 
@@ -42,10 +37,8 @@ export default function Sozlamalar() {
   const [formData, setFormData] = useState({
     short_name_uz: "",
     short_name_ru: "",
-    short_name_en: "",
     full_name_uz: "",
     full_name_ru: "",
-    full_name_en: "",
     address_uz: "",
     address_ru: "",
     established_year: 0,
@@ -67,37 +60,39 @@ export default function Sozlamalar() {
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/settings/`);
+      if (response.status === 404) {
+        setLoading(false);
+        return;
+      }
+      
       const data = await response.json();
       if (response.ok) {
-        // If it's a list, take the first one
-        const settingsData = Array.isArray(data) ? data[0] : data.results ? data.results[0] : data;
-        if (settingsData) {
+        // Handle direct object or list response
+        const settingsData = Array.isArray(data) ? data[0] : (data.results ? data.results[0] : data);
+        
+        if (settingsData && settingsData.id) {
           setSettings(settingsData);
           setFormData({
             short_name_uz: settingsData.translations?.uz?.short_name || "",
             short_name_ru: settingsData.translations?.ru?.short_name || "",
-            short_name_en: settingsData.translations?.en?.short_name || "",
             full_name_uz: settingsData.translations?.uz?.full_name || "",
             full_name_ru: settingsData.translations?.ru?.full_name || "",
-            full_name_en: settingsData.translations?.en?.full_name || "",
             address_uz: settingsData.translations?.uz?.address || "",
             address_ru: settingsData.translations?.ru?.address || "",
             established_year: settingsData.established_year || 0,
             phone: settingsData.phone || "",
             email: settingsData.email || "",
             website: settingsData.website || "",
-            logo: getImageUrl(settingsData.logo),
+            logo: settingsData.logo ? getImageUrl(settingsData.logo) : null,
             telegram: settingsData.telegram || "",
             instagram: settingsData.instagram || "",
             facebook: settingsData.facebook || "",
             youtube: settingsData.youtube || "",
           });
         }
-      } else {
-        toast.error("Sozlamalarni yuklashda xatolik");
       }
     } catch (error) {
-      toast.error("Server bilan bog'lanishda xatolik");
+      console.error("Fetch settings error:", error);
     } finally {
       setLoading(false);
     }
@@ -107,38 +102,34 @@ export default function Sozlamalar() {
     e.preventDefault();
     setIsSaving(true);
 
-    const token = localStorage.getItem("auth_token");
+    const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
 
-    // Required fields
+    // Required fields (uzbek is often required by backend)
     data.append("short_name_uz", formData.short_name_uz);
     data.append("full_name_uz", formData.full_name_uz);
 
     // Optional translation fields
     if (formData.short_name_ru) data.append("short_name_ru", formData.short_name_ru);
-    if (formData.short_name_en) data.append("short_name_en", formData.short_name_en);
     if (formData.full_name_ru) data.append("full_name_ru", formData.full_name_ru);
-    if (formData.full_name_en) data.append("full_name_en", formData.full_name_en);
     if (formData.address_uz) data.append("address_uz", formData.address_uz);
     if (formData.address_ru) data.append("address_ru", formData.address_ru);
 
     // Other fields
-    data.append("established_year", String(formData.established_year || 0));
-    data.append("phone", formData.phone || "");
-    data.append("email", formData.email || "");
-    data.append("website", formData.website || "");
-    data.append("telegram", formData.telegram || "");
-    data.append("instagram", formData.instagram || "");
-    data.append("facebook", formData.facebook || "");
-    data.append("youtube", formData.youtube || "");
+    if (formData.established_year) data.append("established_year", String(formData.established_year));
+    if (formData.phone) data.append("phone", formData.phone);
+    if (formData.email) data.append("email", formData.email);
+    if (formData.website) data.append("website", formData.website);
+    if (formData.telegram) data.append("telegram", formData.telegram);
+    if (formData.instagram) data.append("instagram", formData.instagram);
+    if (formData.facebook) data.append("facebook", formData.facebook);
+    if (formData.youtube) data.append("youtube", formData.youtube);
 
     if (formData.logo instanceof File) {
       data.append("logo", formData.logo);
     }
 
     try {
-      // Based on documentation, PATCH /settings/ is for partial update
-      // and it's a singleton-like collection
       const url = `${API_BASE_URL}/settings/`;
       const method = settings ? "PATCH" : "POST";
 
@@ -153,7 +144,6 @@ export default function Sozlamalar() {
         fetchSettings();
       } else {
         const errData = await response.json();
-        // Handle validation errors from backend
         if (errData && typeof errData === 'object') {
           const errorMessages = Object.entries(errData)
             .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
@@ -293,31 +283,6 @@ export default function Sozlamalar() {
                   </div>
                 </div>
               </div>
-              <div className="space-y-6">
-                <h3 className="text-sm font-bold text-[#0d89b1] uppercase tracking-widest flex items-center gap-2">
-                  <span className="w-2 h-2 bg-[#0d89b1] rounded-full"></span> Ingliz tili
-                </h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">Qisqa nomi (EN)</label>
-                    <input
-                      type="text"
-                      value={formData.short_name_en}
-                      onChange={(e) => setFormData({ ...formData, short_name_en: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">To'liq nomi (EN)</label>
-                    <input
-                      type="text"
-                      value={formData.full_name_en}
-                      onChange={(e) => setFormData({ ...formData, full_name_en: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white"
-                    />
-                  </div>
-                </div>
-              </div>
             </div>
           </section>
 
@@ -339,6 +304,7 @@ export default function Sozlamalar() {
                     value={formData.address_uz}
                     onChange={(e) => setFormData({ ...formData, address_uz: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                    placeholder="Toshkent sh., ..."
                   />
                 </div>
                 <div className="space-y-2">
@@ -350,6 +316,7 @@ export default function Sozlamalar() {
                     value={formData.address_ru}
                     onChange={(e) => setFormData({ ...formData, address_ru: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                    placeholder="г. Ташкент, ..."
                   />
                 </div>
               </div>

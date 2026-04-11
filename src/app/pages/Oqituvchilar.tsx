@@ -8,9 +8,9 @@ import { API_BASE_URL, getImageUrl } from "../../config/api";
 
 interface TeacherTranslation {
   position: string;
-  subject: string;
-  bio: string;
-  achievements: string;
+  subject?: string;
+  bio?: string;
+  achievements?: string;
 }
 
 interface Teacher {
@@ -21,13 +21,14 @@ interface Teacher {
   academic_rank: string;
   category: string;
   experience_years: number;
+  sort_order?: number;
+  department?: string | number;
   email: string;
   photo: string;
   is_active: boolean;
   translations: {
     uz: TeacherTranslation;
-    ru: TeacherTranslation;
-    en: TeacherTranslation;
+    ru?: TeacherTranslation;
   };
 }
 
@@ -51,12 +52,12 @@ export default function Oqituvchilar() {
     is_active: true,
     position_uz: "",
     position_ru: "",
-    position_en: "",
     subject_uz: "",
     subject_ru: "",
     bio_uz: "",
     bio_ru: "",
     achievements_uz: "",
+    achievements_ru: "",
     department: "",
     photo: null as File | string | null,
   });
@@ -101,12 +102,12 @@ export default function Oqituvchilar() {
       is_active: true,
       position_uz: "",
       position_ru: "",
-      position_en: "",
       subject_uz: "",
       subject_ru: "",
       bio_uz: "",
       bio_ru: "",
       achievements_uz: "",
+      achievements_ru: "",
       department: "",
       photo: null,
     });
@@ -126,12 +127,12 @@ export default function Oqituvchilar() {
       is_active: teacher.is_active,
       position_uz: teacher.translations?.uz?.position || "",
       position_ru: teacher.translations?.ru?.position || "",
-      position_en: teacher.translations?.en?.position || "",
       subject_uz: teacher.translations?.uz?.subject || "",
       subject_ru: teacher.translations?.ru?.subject || "",
       bio_uz: teacher.translations?.uz?.bio || "",
       bio_ru: teacher.translations?.ru?.bio || "",
       achievements_uz: teacher.translations?.uz?.achievements || "",
+      achievements_ru: teacher.translations?.ru?.achievements || "",
       department: (teacher as any).department || "",
       photo: getImageUrl(teacher.photo),
     });
@@ -141,7 +142,7 @@ export default function Oqituvchilar() {
   const handleDelete = async (slug: string) => {
     if (confirm("Ushbu o'qituvchini o'chirmoqchimisiz?")) {
       try {
-        const token = localStorage.getItem("auth_token");
+        const token = sessionStorage.getItem("auth_token");
         const response = await fetch(`${API_BASE_URL}/teachers/${slug}/`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
@@ -160,28 +161,36 @@ export default function Oqituvchilar() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.full_name || !formData.position_uz) {
+      toast.error("Iltimos, barcha majburiy maydonlarni to'ldiring");
+      return;
+    }
+
     setIsSubmitting(true);
 
-    const token = localStorage.getItem("auth_token");
+    const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
 
+    // Required fields based on API docs
     data.append("full_name", formData.full_name);
     data.append("academic_degree", formData.academic_degree || "");
-    data.append("academic_rank", formData.academic_rank || "O'qituvchi");
-    data.append("category", formData.category === "none" ? "" : formData.category);
+    data.append("academic_rank", formData.academic_rank || "none");
+    data.append("category", formData.category || "none");
     data.append("experience_years", String(formData.experience_years || 0));
     data.append("sort_order", String(formData.sort_order || 0));
     data.append("email", formData.email || "");
     data.append("is_active", String(formData.is_active));
     
-    if (formData.position_uz) data.append("position_uz", formData.position_uz);
+    // Translation fields
+    data.append("position_uz", formData.position_uz);
     if (formData.position_ru) data.append("position_ru", formData.position_ru);
-    if (formData.position_en) data.append("position_en", formData.position_en);
     if (formData.subject_uz) data.append("subject_uz", formData.subject_uz);
     if (formData.subject_ru) data.append("subject_ru", formData.subject_ru);
     if (formData.bio_uz) data.append("bio_uz", formData.bio_uz);
     if (formData.bio_ru) data.append("bio_ru", formData.bio_ru);
     if (formData.achievements_uz) data.append("achievements_uz", formData.achievements_uz);
+    if (formData.achievements_ru) data.append("achievements_ru", formData.achievements_ru);
     
     if (formData.department && formData.department !== "") {
       data.append("department", String(formData.department));
@@ -209,7 +218,14 @@ export default function Oqituvchilar() {
         fetchTeachers();
       } else {
         const errData = await response.json();
-        toast.error(errData.detail || "Xatolik yuz berdi");
+        if (errData && typeof errData === 'object') {
+          const errorMessages = Object.entries(errData)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+            .join('\n');
+          toast.error(errorMessages || "Xatolik yuz berdi");
+        } else {
+          toast.error("Xatolik yuz berdi");
+        }
       }
     } catch (error) {
       toast.error("Server bilan bog'lanishda xatolik");
@@ -335,14 +351,16 @@ export default function Oqituvchilar() {
                     <td className="px-6 py-4">
                       <span
                         className={`px-2 py-1 text-xs rounded ${
-                          teacher.category === "oliy"
+                          teacher.category === "highest"
                             ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
-                            : teacher.category === "birinchi"
+                            : teacher.category === "first"
                             ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                            : "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400"
+                            : teacher.category === "second"
+                            ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400"
                         }`}
                       >
-                        {teacher.category}
+                        {teacher.category === "highest" ? "Oliy" : teacher.category === "first" ? "Birinchi" : teacher.category === "second" ? "Ikkinchi" : "Yo'q"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -390,14 +408,16 @@ export default function Oqituvchilar() {
                     </p>
                     <span
                       className={`inline-block px-2 py-1 text-xs rounded mt-2 ${
-                        teacher.category === "oliy"
+                        teacher.category === "highest"
                           ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
-                          : teacher.category === "birinchi"
+                          : teacher.category === "first"
                           ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                          : "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400"
+                          : teacher.category === "second"
+                          ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400"
                       }`}
                     >
-                      {teacher.category}
+                      {teacher.category === "highest" ? "Oliy" : teacher.category === "first" ? "Birinchi" : teacher.category === "second" ? "Ikkinchi" : "Yo'q"}
                     </span>
                   </div>
                 </div>
@@ -524,9 +544,9 @@ export default function Oqituvchilar() {
                           className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
                         >
                           <option value="none">Yo'q</option>
-                          <option value="oliy">Oliy</option>
-                          <option value="birinchi">Birinchi</option>
-                          <option value="ikkinchi">Ikkinchi</option>
+                          <option value="highest">Oliy</option>
+                          <option value="first">Birinchi</option>
+                          <option value="second">Ikkinchi</option>
                         </select>
                       </div>
                       <div>
@@ -620,7 +640,7 @@ export default function Oqituvchilar() {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Tarjimai hol va Yutuqlar</h3>
+                  <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Tarjimai hol</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <textarea
                       placeholder="Tarjimai hol (UZ)"
@@ -630,9 +650,29 @@ export default function Oqituvchilar() {
                       className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
                     />
                     <textarea
+                      placeholder="Tarjimai hol (RU)"
+                      value={formData.bio_ru}
+                      onChange={(e) => setFormData({ ...formData, bio_ru: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Yutuqlar</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <textarea
                       placeholder="Yutuqlar (UZ)"
                       value={formData.achievements_uz}
                       onChange={(e) => setFormData({ ...formData, achievements_uz: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
+                    />
+                    <textarea
+                      placeholder="Yutuqlar (RU)"
+                      value={formData.achievements_ru}
+                      onChange={(e) => setFormData({ ...formData, achievements_ru: e.target.value })}
                       rows={3}
                       className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
                     />

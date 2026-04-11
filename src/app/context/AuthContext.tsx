@@ -26,26 +26,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check if user is already authenticated on mount
-    const token = localStorage.getItem("auth_token");
-    const userData = localStorage.getItem("auth_user");
+    const token = sessionStorage.getItem("auth_token");
+    const userData = sessionStorage.getItem("auth_user");
     if (token && userData) {
-      setIsAuthenticated(true);
-      setUser(JSON.parse(userData));
+      try {
+        setIsAuthenticated(true);
+        setUser(JSON.parse(userData));
+      } catch (e) {
+        console.error("Error parsing user data:", e);
+        logout();
+      }
     }
   }, []);
 
   const login = () => {
     setIsAuthenticated(true);
-    const userData = localStorage.getItem("auth_user");
+    const userData = sessionStorage.getItem("auth_user");
     if (userData) {
-      setUser(JSON.parse(userData));
+      try {
+        setUser(JSON.parse(userData));
+      } catch (e) {
+        console.error("Error parsing user data on login:", e);
+      }
     }
   };
 
   const logout = () => {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("auth_user");
+    sessionStorage.removeItem("auth_token");
+    sessionStorage.removeItem("refresh_token");
+    sessionStorage.removeItem("auth_user");
     setIsAuthenticated(false);
     setUser(null);
   };

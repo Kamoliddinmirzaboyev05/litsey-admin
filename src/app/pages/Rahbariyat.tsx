@@ -25,7 +25,6 @@ interface Leader {
   translations: {
     uz: ManagementTranslation;
     ru: ManagementTranslation;
-    en: ManagementTranslation;
   };
 }
 
@@ -45,13 +44,10 @@ export default function Rahbariyat() {
     is_active: true,
     position_uz: "",
     position_ru: "",
-    position_en: "",
     bio_uz: "",
     bio_ru: "",
-    bio_en: "",
     reception_hours_uz: "",
     reception_hours_ru: "",
-    reception_hours_en: "",
     photo: null as File | string | null,
   });
 
@@ -87,13 +83,10 @@ export default function Rahbariyat() {
       is_active: true,
       position_uz: "",
       position_ru: "",
-      position_en: "",
       bio_uz: "",
       bio_ru: "",
-      bio_en: "",
       reception_hours_uz: "",
       reception_hours_ru: "",
-      reception_hours_en: "",
       photo: null,
     });
     setIsModalOpen(true);
@@ -110,13 +103,10 @@ export default function Rahbariyat() {
       is_active: !!leader.is_active,
       position_uz: leader.translations?.uz?.position || "",
       position_ru: leader.translations?.ru?.position || "",
-      position_en: leader.translations?.en?.position || "",
       bio_uz: leader.translations?.uz?.bio || "",
       bio_ru: leader.translations?.ru?.bio || "",
-      bio_en: leader.translations?.en?.bio || "",
       reception_hours_uz: leader.translations?.uz?.reception_hours || "",
       reception_hours_ru: leader.translations?.ru?.reception_hours || "",
-      reception_hours_en: leader.translations?.en?.reception_hours || "",
       photo: leader.photo ? getImageUrl(leader.photo) : null,
     });
     setIsModalOpen(true);
@@ -125,7 +115,7 @@ export default function Rahbariyat() {
   const handleDelete = async (id: number) => {
     if (confirm("Ushbu rahbar ma'lumotlarini o'chirmoqchimisiz?")) {
       try {
-        const token = localStorage.getItem("auth_token");
+        const token = sessionStorage.getItem("auth_token");
         const response = await fetch(`${API_BASE_URL}/management/${id}/`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
@@ -146,7 +136,7 @@ export default function Rahbariyat() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const token = localStorage.getItem("auth_token");
+    const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
 
     data.append("full_name", formData.full_name);
@@ -158,13 +148,10 @@ export default function Rahbariyat() {
     
     if (formData.position_uz) data.append("position_uz", formData.position_uz);
     if (formData.position_ru) data.append("position_ru", formData.position_ru);
-    if (formData.position_en) data.append("position_en", formData.position_en);
     if (formData.bio_uz) data.append("bio_uz", formData.bio_uz);
     if (formData.bio_ru) data.append("bio_ru", formData.bio_ru);
-    if (formData.bio_en) data.append("bio_en", formData.bio_en);
     if (formData.reception_hours_uz) data.append("reception_hours_uz", formData.reception_hours_uz);
     if (formData.reception_hours_ru) data.append("reception_hours_ru", formData.reception_hours_ru);
-    if (formData.reception_hours_en) data.append("reception_hours_en", formData.reception_hours_en);
 
     if (formData.photo instanceof File) {
       data.append("photo", formData.photo);
@@ -422,13 +409,6 @@ export default function Rahbariyat() {
                         onChange={(e) => setFormData({ ...formData, position_ru: e.target.value })}
                         className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
                       />
-                      <input
-                        type="text"
-                        placeholder="EN"
-                        value={formData.position_en}
-                        onChange={(e) => setFormData({ ...formData, position_en: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      />
                     </div>
                   </div>
                   <div className="space-y-4">
@@ -446,13 +426,6 @@ export default function Rahbariyat() {
                         placeholder="Qabul vaqti (RU)"
                         value={formData.reception_hours_ru}
                         onChange={(e) => setFormData({ ...formData, reception_hours_ru: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Qabul vaqti (EN)"
-                        value={formData.reception_hours_en}
-                        onChange={(e) => setFormData({ ...formData, reception_hours_en: e.target.value })}
                         className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
                       />
                     </div>
@@ -473,13 +446,6 @@ export default function Rahbariyat() {
                       placeholder="Biografiya (RU)"
                       value={formData.bio_ru}
                       onChange={(e) => setFormData({ ...formData, bio_ru: e.target.value })}
-                      rows={3}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                    />
-                    <textarea
-                      placeholder="Biografiya (EN)"
-                      value={formData.bio_en}
-                      onChange={(e) => setFormData({ ...formData, bio_en: e.target.value })}
                       rows={3}
                       className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
                     />
