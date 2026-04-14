@@ -134,24 +134,32 @@ export default function Rahbariyat() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.full_name || !formData.position_uz) {
+      toast.error("Iltimos, barcha majburiy maydonlarni to'ldiring (Ism va Lavozim)");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
 
+    // Base fields
     data.append("full_name", formData.full_name);
     data.append("academic_degree", formData.academic_degree || "");
     data.append("phone", formData.phone || "");
     data.append("email", formData.email || "");
     data.append("sort_order", String(formData.sort_order || 0));
-    data.append("is_active", String(formData.is_active));
+    data.append("is_active", formData.is_active ? "true" : "false");
     
-    if (formData.position_uz) data.append("position_uz", formData.position_uz);
-    if (formData.position_ru) data.append("position_ru", formData.position_ru);
-    if (formData.bio_uz) data.append("bio_uz", formData.bio_uz);
-    if (formData.bio_ru) data.append("bio_ru", formData.bio_ru);
-    if (formData.reception_hours_uz) data.append("reception_hours_uz", formData.reception_hours_uz);
-    if (formData.reception_hours_ru) data.append("reception_hours_ru", formData.reception_hours_ru);
+    // Translation fields - always append to ensure they exist
+    data.append("position_uz", formData.position_uz);
+    data.append("position_ru", formData.position_ru || "");
+    data.append("bio_uz", formData.bio_uz || "");
+    data.append("bio_ru", formData.bio_ru || "");
+    data.append("reception_hours_uz", formData.reception_hours_uz || "");
+    data.append("reception_hours_ru", formData.reception_hours_ru || "");
 
     if (formData.photo instanceof File) {
       data.append("photo", formData.photo);
@@ -170,15 +178,28 @@ export default function Rahbariyat() {
       });
 
       if (response.ok) {
-        toast.success(editingLeader ? "Tahrirlandi" : "Qo'shildi");
+        toast.success(editingLeader ? "Muvaffaqiyatli tahrirlandi" : "Muvaffaqiyatli qo'shildi");
         setIsModalOpen(false);
         fetchLeaders();
       } else {
         const errData = await response.json();
-        toast.error(errData.detail || "Xatolik yuz berdi");
+        if (errData && typeof errData === 'object') {
+          // Extract error messages from all fields
+          const errorMessages = Object.entries(errData)
+            .map(([field, msgs]) => {
+              const message = Array.isArray(msgs) ? msgs.join(', ') : msgs;
+              return `${field}: ${message}`;
+            })
+            .join('\n');
+          toast.error(errorMessages || "Xatolik yuz berdi");
+          console.error("API Error Details:", errData);
+        } else {
+          toast.error("Xatolik yuz berdi");
+        }
       }
     } catch (error) {
       toast.error("Server bilan bog'lanishda xatolik");
+      console.error("Submit error:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -227,7 +248,6 @@ export default function Rahbariyat() {
                   <p className="text-sm text-[#0d89b1] font-medium mt-1">
                     {leader.translations?.uz?.position}
                   </p>
-                  <p className="text-xs text-[#64748b] dark:text-gray-400 mt-1">{leader.academic_degree}</p>
                 </div>
 
                 {/* Bio */}
@@ -302,153 +322,165 @@ export default function Rahbariyat() {
                 </button>
               </div>
               
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <ImageUpload
-                      label="Foto"
-                      value={formData.photo}
-                      onChange={(file) => setFormData({ ...formData, photo: file })}
-                      placeholder="Rahbar fotosuratini yuklash uchun bosing"
-                    />
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                        To'liq ismi *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.full_name}
-                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        required
+              <form onSubmit={handleSubmit} className="p-6 space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Left Column: Photo and Basic Info */}
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
+                      <ImageUpload
+                        label="Fotosurat"
+                        value={formData.photo}
+                        onChange={(file) => setFormData({ ...formData, photo: file })}
+                        placeholder="Rasm yuklash"
                       />
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
+                          To'liq ismi *
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.full_name}
+                          onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                          placeholder="F.I.Sh."
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
+                            Telefon raqami
+                          </label>
+                          <input
+                            type="tel"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                            placeholder="+998 88 777 88 88"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
+                            Email manzili
+                          </label>
+                          <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                            placeholder="example@fdtu.uz"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                        Ilmiy daraja
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.academic_degree}
-                        onChange={(e) => setFormData({ ...formData, academic_degree: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      />
+                  {/* Right Column: Translations */}
+                  <div className="space-y-6">
+                    {/* UZ Translation */}
+                    <div className="p-5 bg-[#0d89b1]/5 dark:bg-[#0d89b1]/10 rounded-2xl border border-[#0d89b1]/10 space-y-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="w-2 h-2 bg-[#0d89b1] rounded-full"></span>
+                        <h3 className="text-sm font-bold text-[#0d89b1] uppercase tracking-wider">O'zbek tilida</h3>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 ml-1 uppercase">Lavozimi *</label>
+                        <input
+                          type="text"
+                          value={formData.position_uz}
+                          onChange={(e) => setFormData({ ...formData, position_uz: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                          placeholder="Masalan: Direktor o'rinbosari"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 ml-1 uppercase">Qabul vaqti</label>
+                        <input
+                          type="text"
+                          value={formData.reception_hours_uz}
+                          onChange={(e) => setFormData({ ...formData, reception_hours_uz: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                          placeholder="Chorshanba-Payshanba, 10:00 - 17:00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 ml-1 uppercase">Qisqacha ma'lumot (Bio)</label>
+                        <textarea
+                          value={formData.bio_uz}
+                          onChange={(e) => setFormData({ ...formData, bio_uz: e.target.value })}
+                          rows={2}
+                          className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white resize-none"
+                          placeholder="Litsey direktorining o'quv ishlari bo'yicha o'rinbosari"
+                        />
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+
+                    {/* RU Translation */}
+                    <div className="p-5 bg-gray-50 dark:bg-gray-800/30 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Rus tilida</h3>
+                      </div>
                       <div>
-                        <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                          Telefon
-                        </label>
+                        <label className="block text-xs font-bold text-gray-400 mb-1 ml-1 uppercase">Lavozimi</label>
                         <input
-                          type="tel"
-                          value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
+                          type="text"
+                          value={formData.position_ru}
+                          onChange={(e) => setFormData({ ...formData, position_ru: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                          placeholder="Например: Заместитель директора"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                          Email
-                        </label>
+                        <label className="block text-xs font-bold text-gray-400 mb-1 ml-1 uppercase">Qabul vaqti</label>
                         <input
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                          Saralash tartibi
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.sort_order}
-                          onChange={(e) => setFormData({ ...formData, sort_order: Number(e.target.value) })}
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
+                          type="text"
+                          value={formData.reception_hours_ru}
+                          onChange={(e) => setFormData({ ...formData, reception_hours_ru: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                          placeholder="Среда-Четверг, 10:00 - 17:00"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                          Status
-                        </label>
-                        <select
-                          value={String(formData.is_active)}
-                          onChange={(e) => setFormData({ ...formData, is_active: e.target.value === "true" })}
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        >
-                          <option value="true">Faol</option>
-                          <option value="false">Nofaol</option>
-                        </select>
+                        <label className="block text-xs font-bold text-gray-400 mb-1 ml-1 uppercase">Bio</label>
+                        <textarea
+                          value={formData.bio_ru}
+                          onChange={(e) => setFormData({ ...formData, bio_ru: e.target.value })}
+                          rows={2}
+                          className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white resize-none"
+                          placeholder="Заместитель директора по учебной работе..."
+                        />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Lavozimi</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      <input
-                        type="text"
-                        placeholder="UZ *"
-                        value={formData.position_uz}
-                        onChange={(e) => setFormData({ ...formData, position_uz: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        required
-                      />
-                      <input
-                        type="text"
-                        placeholder="RU"
-                        value={formData.position_ru}
-                        onChange={(e) => setFormData({ ...formData, position_ru: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Qabul vaqti</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      <input
-                        type="text"
-                        placeholder="Qabul vaqti (UZ)"
-                        value={formData.reception_hours_uz}
-                        onChange={(e) => setFormData({ ...formData, reception_hours_uz: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Qabul vaqti (RU)"
-                        value={formData.reception_hours_ru}
-                        onChange={(e) => setFormData({ ...formData, reception_hours_ru: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Biografiya</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <textarea
-                      placeholder="Biografiya (UZ)"
-                      value={formData.bio_uz}
-                      onChange={(e) => setFormData({ ...formData, bio_uz: e.target.value })}
-                      rows={3}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
+                {/* Hidden/Minimal System Fields */}
+                <div className="flex items-center gap-6 px-4 py-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Tartib:</label>
+                    <input
+                      type="number"
+                      value={formData.sort_order}
+                      onChange={(e) => setFormData({ ...formData, sort_order: Number(e.target.value) })}
+                      className="w-16 px-2 py-1 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded focus:border-[#0d89b1] outline-none dark:text-white"
                     />
-                    <textarea
-                      placeholder="Biografiya (RU)"
-                      value={formData.bio_ru}
-                      onChange={(e) => setFormData({ ...formData, bio_ru: e.target.value })}
-                      rows={3}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Holati:</label>
+                    <select
+                      value={String(formData.is_active)}
+                      onChange={(e) => setFormData({ ...formData, is_active: e.target.value === "true" })}
+                      className="px-2 py-1 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded focus:border-[#0d89b1] outline-none dark:text-white"
+                    >
+                      <option value="true">Faol</option>
+                      <option value="false">Nofaol</option>
+                    </select>
                   </div>
                 </div>
 
@@ -456,17 +488,17 @@ export default function Rahbariyat() {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-6 py-2 border border-gray-200 dark:border-gray-700 text-[#1f2937] dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                   >
                     Bekor qilish
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-8 py-2 bg-[#0d89b1] text-white rounded-lg hover:bg-[#0a6d8f] transition-colors flex items-center gap-2 disabled:opacity-50"
+                    className="px-10 py-2.5 bg-[#0d89b1] text-white font-bold rounded-xl hover:bg-[#0a6d8f] shadow-lg shadow-[#0d89b1]/20 transition-all flex items-center gap-2 disabled:opacity-50 active:scale-95"
                   >
                     {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {editingLeader ? "Saqlash" : "Qo'shish"}
+                    {editingLeader ? "O'zgarishlarni saqlash" : "Rahbarni qo'shish"}
                   </button>
                 </div>
               </form>

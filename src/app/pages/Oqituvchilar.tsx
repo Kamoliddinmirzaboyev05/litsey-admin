@@ -24,6 +24,7 @@ interface Teacher {
   sort_order?: number;
   department?: string | number;
   email: string;
+  phone?: string;
   photo: string;
   is_active: boolean;
   translations: {
@@ -43,12 +44,13 @@ export default function Oqituvchilar() {
 
   const [formData, setFormData] = useState({
     full_name: "",
-    academic_degree: "",
-    academic_rank: "",
+    academic_degree: "Yo'q",
+    academic_rank: "Yo'q",
     category: "none",
     experience_years: 0,
     sort_order: 0,
     email: "",
+    phone: "",
     is_active: true,
     position_uz: "",
     position_ru: "",
@@ -93,12 +95,13 @@ export default function Oqituvchilar() {
     setEditingTeacher(null);
     setFormData({
       full_name: "",
-      academic_degree: "",
-      academic_rank: "",
+      academic_degree: "Yo'q",
+      academic_rank: "Yo'q",
       category: "none",
       experience_years: 0,
       sort_order: 0,
       email: "",
+      phone: "",
       is_active: true,
       position_uz: "",
       position_ru: "",
@@ -118,12 +121,13 @@ export default function Oqituvchilar() {
     setEditingTeacher(teacher);
     setFormData({
       full_name: teacher.full_name || "",
-      academic_degree: teacher.academic_degree || "",
-      academic_rank: teacher.academic_rank || "",
+      academic_degree: teacher.academic_degree || "Yo'q",
+      academic_rank: teacher.academic_rank || "Yo'q",
       category: teacher.category || "none",
       experience_years: teacher.experience_years || 0,
       sort_order: (teacher as any).sort_order || 0,
       email: teacher.email || "",
+      phone: teacher.phone || "",
       is_active: teacher.is_active,
       position_uz: teacher.translations?.uz?.position || "",
       position_ru: teacher.translations?.ru?.position || "",
@@ -174,12 +178,15 @@ export default function Oqituvchilar() {
 
     // Required fields based on API docs
     data.append("full_name", formData.full_name);
-    data.append("academic_degree", formData.academic_degree || "");
-    data.append("academic_rank", formData.academic_rank || "none");
+    data.append("academic_degree", formData.academic_degree || "Yo'q");
+    data.append("academic_rank", formData.academic_rank || "Yo'q");
     data.append("category", formData.category || "none");
     data.append("experience_years", String(formData.experience_years || 0));
     data.append("sort_order", String(formData.sort_order || 0));
     data.append("email", formData.email || "");
+    if (formData.phone) {
+      data.append("phone", formData.phone);
+    }
     data.append("is_active", String(formData.is_active));
     
     // Translation fields
@@ -310,10 +317,7 @@ export default function Oqituvchilar() {
                     Lavozim
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
-                    Ilmiy daraja
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
-                    Toifa
+                    Tajriba
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
                     Harakatlar
@@ -345,22 +349,7 @@ export default function Oqituvchilar() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-[#64748b] dark:text-gray-400">
-                        {teacher.academic_degree}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 text-xs rounded ${
-                          teacher.category === "highest"
-                            ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
-                            : teacher.category === "first"
-                            ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                            : teacher.category === "second"
-                            ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400"
-                            : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400"
-                        }`}
-                      >
-                        {teacher.category === "highest" ? "Oliy" : teacher.category === "first" ? "Birinchi" : teacher.category === "second" ? "Ikkinchi" : "Yo'q"}
+                        {teacher.experience_years} yil
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -406,30 +395,17 @@ export default function Oqituvchilar() {
                     <p className="text-sm text-[#64748b] dark:text-gray-400 mt-1">
                       {teacher.translations?.uz?.position}
                     </p>
-                    <span
-                      className={`inline-block px-2 py-1 text-xs rounded mt-2 ${
-                        teacher.category === "highest"
-                          ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
-                          : teacher.category === "first"
-                          ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                          : teacher.category === "second"
-                          ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400"
-                      }`}
-                    >
-                      {teacher.category === "highest" ? "Oliy" : teacher.category === "first" ? "Birinchi" : teacher.category === "second" ? "Ikkinchi" : "Yo'q"}
-                    </span>
                   </div>
                 </div>
                 
                 <div className="mt-4 space-y-2">
                   <div className="text-sm">
-                    <span className="text-[#64748b] dark:text-gray-400">Ilmiy daraja:</span>
-                    <p className="text-[#1f2937] dark:text-gray-200 mt-1">{teacher.academic_degree}</p>
+                    <span className="text-[#64748b] dark:text-gray-400">Tajriba:</span>
+                    <p className="text-[#1f2937] dark:text-gray-200 mt-1">{teacher.experience_years} yil</p>
                   </div>
                   <div className="text-sm">
-                    <span className="text-[#64748b] dark:text-gray-400">Fan:</span>
-                    <p className="text-[#1f2937] dark:text-gray-200 mt-1">{teacher.translations?.uz?.subject}</p>
+                    <span className="text-[#64748b] dark:text-gray-400">Email:</span>
+                    <p className="text-[#1f2937] dark:text-gray-200 mt-1">{teacher.email || "Ko'rsatilmagan"}</p>
                   </div>
                 </div>
 
@@ -494,6 +470,44 @@ export default function Oqituvchilar() {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+                        Lavozimi (UZ) *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.position_uz}
+                        onChange={(e) => setFormData({ ...formData, position_uz: e.target.value })}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+                        Tajriba (yil)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.experience_years}
+                        onChange={(e) => setFormData({ ...formData, experience_years: Number(e.target.value) })}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+                        Telefon raqami
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        placeholder="+998 90 123 45 67"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
                         Email
@@ -505,177 +519,6 @@ export default function Oqituvchilar() {
                         className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
                       />
                     </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                          Ilmiy daraja
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.academic_degree}
-                          onChange={(e) => setFormData({ ...formData, academic_degree: e.target.value })}
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                          Ilmiy unvon *
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.academic_rank}
-                          onChange={(e) => setFormData({ ...formData, academic_rank: e.target.value })}
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                          Toifa
-                        </label>
-                        <select
-                          value={formData.category}
-                          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        >
-                          <option value="none">Yo'q</option>
-                          <option value="highest">Oliy</option>
-                          <option value="first">Birinchi</option>
-                          <option value="second">Ikkinchi</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                          Tajriba (yil)
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.experience_years}
-                          onChange={(e) => setFormData({ ...formData, experience_years: Number(e.target.value) })}
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                          Saralash tartibi
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.sort_order}
-                          onChange={(e) => setFormData({ ...formData, sort_order: Number(e.target.value) })}
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                          Kafedra ID
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.department}
-                          onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                        Status
-                      </label>
-                      <select
-                        value={String(formData.is_active)}
-                        onChange={(e) => setFormData({ ...formData, is_active: e.target.value === "true" })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      >
-                        <option value="true">Faol</option>
-                        <option value="false">Nofaol</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Lavozimi</h3>
-                    <input
-                      type="text"
-                      placeholder="UZ *"
-                      value={formData.position_uz}
-                      onChange={(e) => setFormData({ ...formData, position_uz: e.target.value })}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="RU"
-                      value={formData.position_ru}
-                      onChange={(e) => setFormData({ ...formData, position_ru: e.target.value })}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                    />
-                  </div>
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Fanlar</h3>
-                    <input
-                      type="text"
-                      placeholder="Fan (UZ)"
-                      value={formData.subject_uz}
-                      onChange={(e) => setFormData({ ...formData, subject_uz: e.target.value })}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Fan (RU)"
-                      value={formData.subject_ru}
-                      onChange={(e) => setFormData({ ...formData, subject_ru: e.target.value })}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Tarjimai hol</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <textarea
-                      placeholder="Tarjimai hol (UZ)"
-                      value={formData.bio_uz}
-                      onChange={(e) => setFormData({ ...formData, bio_uz: e.target.value })}
-                      rows={3}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                    />
-                    <textarea
-                      placeholder="Tarjimai hol (RU)"
-                      value={formData.bio_ru}
-                      onChange={(e) => setFormData({ ...formData, bio_ru: e.target.value })}
-                      rows={3}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Yutuqlar</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <textarea
-                      placeholder="Yutuqlar (UZ)"
-                      value={formData.achievements_uz}
-                      onChange={(e) => setFormData({ ...formData, achievements_uz: e.target.value })}
-                      rows={3}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                    />
-                    <textarea
-                      placeholder="Yutuqlar (RU)"
-                      value={formData.achievements_ru}
-                      onChange={(e) => setFormData({ ...formData, achievements_ru: e.target.value })}
-                      rows={3}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                    />
                   </div>
                 </div>
 
