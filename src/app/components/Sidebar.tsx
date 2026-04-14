@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Menu,
   X,
+  Grid3x3,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -24,6 +25,7 @@ const navItems = [
   { path: "/elonlar", label: "E'lonlar", icon: Bell },
   { path: "/oqituvchilar", label: "O'qituvchilar", icon: Users },
   { path: "/rahbariyat", label: "Rahbariyat", icon: UserCog },
+  { path: "/kafedralar", label: "Kafedralar", icon: Grid3x3 },
   { path: "/qabul", label: "Qabul", icon: UserPlus },
   { path: "/sozlamalar", label: "Sozlamalar", icon: Settings },
 ];
@@ -122,9 +124,16 @@ export function Sidebar() {
                     </button>
                   </li>
                   <li>
-                    <button className="w-full text-left px-4 py-2 text-sm text-[#64748b] dark:text-gray-400 hover:text-[#0d89b1] transition-colors">
+                    <NavLink
+                      to="/dars-jadvali"
+                      className={({ isActive }) =>
+                        `w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${
+                          isActive ? "text-[#0d89b1] font-bold" : "text-[#64748b] dark:text-gray-400 hover:text-[#0d89b1]"
+                        }`
+                      }
+                    >
                       Dars jadvali
-                    </button>
+                    </NavLink>
                   </li>
                 </ul>
               )}

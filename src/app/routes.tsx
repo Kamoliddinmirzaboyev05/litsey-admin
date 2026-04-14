@@ -7,6 +7,8 @@ import Oqituvchilar from "./pages/Oqituvchilar";
 import Rahbariyat from "./pages/Rahbariyat";
 import Qabul from "./pages/Qabul";
 import Sozlamalar from "./pages/Sozlamalar";
+import DarsJadvali from "./pages/DarsJadvali";
+import Kafedralar from "./pages/Kafedralar";
 
 export const router = createBrowserRouter([
   {
@@ -18,8 +20,10 @@ export const router = createBrowserRouter([
       { path: "elonlar", Component: Elonlar },
       { path: "oqituvchilar", Component: Oqituvchilar },
       { path: "rahbariyat", Component: Rahbariyat },
+      { path: "kafedralar", Component: Kafedralar },
       { path: "qabul", Component: Qabul },
       { path: "sozlamalar", Component: Sozlamalar },
+      { path: "dars-jadvali", Component: DarsJadvali },
     ],
   },
 ]);
