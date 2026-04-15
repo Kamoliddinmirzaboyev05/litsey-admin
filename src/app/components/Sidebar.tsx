@@ -16,6 +16,8 @@ import {
   Menu,
   X,
   Grid3x3,
+  HelpCircle,
+  BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -26,7 +28,11 @@ const navItems = [
   { path: "/oqituvchilar", label: "O'qituvchilar", icon: Users },
   { path: "/rahbariyat", label: "Rahbariyat", icon: UserCog },
   { path: "/kafedralar", label: "Kafedralar", icon: Grid3x3 },
+  { path: "/savollar", label: "Savollar", icon: HelpCircle },
+  { path: "/statistika", label: "Statistika", icon: BarChart3 },
   { path: "/qabul", label: "Qabul", icon: UserPlus },
+  { path: "/galereya", label: "Galereya", icon: Image },
+  { path: "/slayderlar", label: "Slayderlar", icon: LayoutDashboard },
   { path: "/sozlamalar", label: "Sozlamalar", icon: Settings },
 ];
 
@@ -137,14 +143,6 @@ export function Sidebar() {
                   </li>
                 </ul>
               )}
-            </li>
-
-            {/* Galereya */}
-            <li>
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-[#1f2937] dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                <Image className="w-5 h-5" />
-                <span className="text-sm font-medium">Galereya</span>
-              </button>
             </li>
           </ul>
         </nav>

@@ -38,6 +38,7 @@ export default function Yangiliklar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNews, setEditingNews] = useState<News | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
   
   const [formData, setFormData] = useState({
     status: "draft",
@@ -45,13 +46,17 @@ export default function Yangiliklar() {
     published_at: new Date().toISOString().split("T")[0],
     title_uz: "",
     title_ru: "",
-    title_uz_cyrl: "",
     short_description_uz: "",
     short_description_ru: "",
     content_uz: "",
     content_ru: "",
     image: null as File | string | null,
   });
+
+  const languages = [
+    { id: "uz", label: "O'zbekcha" },
+    { id: "ru", label: "Русский" },
+  ] as const;
 
   useEffect(() => {
     fetchNews();
@@ -60,7 +65,10 @@ export default function Yangiliklar() {
   const fetchNews = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/news/`);
+      const token = sessionStorage.getItem("auth_token");
+      const response = await fetch(`${API_BASE_URL}/news/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await response.json();
       
       if (response.ok) {
@@ -102,7 +110,6 @@ export default function Yangiliklar() {
       published_at: new Date().toISOString().split("T")[0],
       title_uz: "",
       title_ru: "",
-      title_uz_cyrl: "",
       short_description_uz: "",
       short_description_ru: "",
       content_uz: "",
@@ -120,7 +127,6 @@ export default function Yangiliklar() {
       published_at: item.published_at ? item.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
       title_uz: item.translations?.uz?.title || "",
       title_ru: item.translations?.ru?.title || "",
-      title_uz_cyrl: item.translations?.uz_cyrl?.title || "",
       short_description_uz: item.translations?.uz?.short_description || "",
       short_description_ru: item.translations?.ru?.short_description || "",
       content_uz: item.translations?.uz?.content || "",
@@ -172,7 +178,6 @@ export default function Yangiliklar() {
     // Required field title_uz
     if (formData.title_uz) data.append("title_uz", formData.title_uz);
     if (formData.title_ru) data.append("title_ru", formData.title_ru);
-    if (formData.title_uz_cyrl) data.append("title_uz_cyrl", formData.title_uz_cyrl);
     
     if (formData.short_description_uz) data.append("short_description_uz", formData.short_description_uz);
     if (formData.short_description_ru) data.append("short_description_ru", formData.short_description_ru);
@@ -350,32 +355,49 @@ export default function Yangiliklar() {
       {/* Modal */}
       {isModalOpen && (
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-[#1f2937] rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto border dark:border-gray-700 shadow-xl">
-              <div className="sticky top-0 bg-white dark:bg-[#1f2937] border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10 transition-colors">
-                <h2 className="text-lg font-semibold text-[#1f2937] dark:text-gray-100">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-[#1f2937] rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border dark:border-gray-700 shadow-2xl transition-all animate-in fade-in zoom-in duration-200">
+              <div className="sticky top-0 bg-white/80 dark:bg-[#1f2937]/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-700 px-8 py-6 flex items-center justify-between z-10">
+                <h2 className="text-2xl font-bold text-[#1f2937] dark:text-gray-100">
                   {editingNews ? "Yangilikni tahrirlash" : "Yangi yangilik qo'shish"}
                 </h2>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors text-[#64748b] dark:text-gray-400"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-4">
+                  <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                    {languages.map((lang) => (
+                      <button
+                        key={lang.id}
+                        type="button"
+                        onClick={() => setActiveTab(lang.id as "uz" | "ru")}
+                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                          activeTab === lang.id
+                            ? "bg-white dark:bg-gray-700 text-[#0d89b1] shadow-sm"
+                            : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                        }`}
+                      >
+                        {lang.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-[#64748b] dark:text-gray-400"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
               
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <form onSubmit={handleSubmit} className="p-8 space-y-8">
+                {/* General Settings */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
                   <div>
-                    <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                       Status
                     </label>
                     <select
                       value={formData.status}
-                      onChange={(e) =>
-                        setFormData({ ...formData, status: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
                     >
                       <option value="draft">Qoralama (Draft)</option>
                       <option value="published">Nashr qilish (Published)</option>
@@ -383,15 +405,13 @@ export default function Yangiliklar() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                       Asosiy yangilik
                     </label>
                     <select
                       value={String(formData.is_featured)}
-                      onChange={(e) =>
-                        setFormData({ ...formData, is_featured: e.target.value === "true" })
-                      }
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                      onChange={(e) => setFormData({ ...formData, is_featured: e.target.value === "true" })}
+                      className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
                     >
                       <option value="false">Yo'q</option>
                       <option value="true">Ha</option>
@@ -399,154 +419,95 @@ export default function Yangiliklar() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                       Nashr sanasi
                     </label>
                     <input
                       type="date"
                       value={formData.published_at}
-                      onChange={(e) =>
-                        setFormData({ ...formData, published_at: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
+                      onChange={(e) => setFormData({ ...formData, published_at: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Titles */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Sarlavhalar</h3>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
-                        Sarlavha (UZ) *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.title_uz}
-                        onChange={(e) =>
-                          setFormData({ ...formData, title_uz: e.target.value })
-                        }
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
-                        Sarlavha (RU)
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.title_ru}
-                        onChange={(e) =>
-                          setFormData({ ...formData, title_ru: e.target.value })
-                        }
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
-                        Sarlavha (UZ Kirill)
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.title_uz_cyrl}
-                        onChange={(e) =>
-                          setFormData({ ...formData, title_uz_cyrl: e.target.value })
-                        }
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
-                      />
-                    </div>
+                {/* Language Specific Fields */}
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                      Sarlavha ({activeTab.toUpperCase()}) {activeTab === "uz" && "*"}
+                    </label>
+                    <input
+                      type="text"
+                      value={activeTab === "uz" ? formData.title_uz : formData.title_ru}
+                      onChange={(e) => {
+                        const field = `title_${activeTab}` as keyof typeof formData;
+                        setFormData({ ...formData, [field]: e.target.value });
+                      }}
+                      className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
+                      required={activeTab === "uz"}
+                      placeholder={`${activeTab.toUpperCase()} tilida sarlavha...`}
+                    />
                   </div>
 
-                  {/* Short Descriptions */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">Qisqa tavsiflar</h3>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
-                        Qisqa tavsif (UZ)
-                      </label>
-                      <textarea
-                        value={formData.short_description_uz}
-                        onChange={(e) =>
-                          setFormData({ ...formData, short_description_uz: e.target.value })
-                        }
-                        rows={3}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
-                        Qisqa tavsif (RU)
-                      </label>
-                      <textarea
-                        value={formData.short_description_ru}
-                        onChange={(e) =>
-                          setFormData({ ...formData, short_description_ru: e.target.value })
-                        }
-                        rows={3}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                      Qisqa tavsif ({activeTab.toUpperCase()})
+                    </label>
+                    <textarea
+                      value={activeTab === "uz" ? formData.short_description_uz : formData.short_description_ru}
+                      onChange={(e) => {
+                        const field = `short_description_${activeTab}` as keyof typeof formData;
+                        setFormData({ ...formData, [field]: e.target.value });
+                      }}
+                      rows={3}
+                      className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100 resize-none"
+                      placeholder={`${activeTab.toUpperCase()} tilida qisqa tavsif...`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                      To'liq matn ({activeTab.toUpperCase()}) {activeTab === "uz" && "*"}
+                    </label>
+                    <textarea
+                      value={activeTab === "uz" ? formData.content_uz : formData.content_ru}
+                      onChange={(e) => {
+                        const field = `content_${activeTab}` as keyof typeof formData;
+                        setFormData({ ...formData, [field]: e.target.value });
+                      }}
+                      rows={8}
+                      className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
+                      required={activeTab === "uz"}
+                      placeholder={`${activeTab.toUpperCase()} tilida to'liq matn...`}
+                    />
                   </div>
                 </div>
 
-                {/* Full Content */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-sm text-[#0d89b1] border-b dark:border-gray-700 pb-1">To'liq matnlar</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
-                        Matn (UZ) *
-                      </label>
-                      <textarea
-                        value={formData.content_uz}
-                        onChange={(e) =>
-                          setFormData({ ...formData, content_uz: e.target.value })
-                        }
-                        rows={6}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-1">
-                        Matn (RU)
-                      </label>
-                      <textarea
-                        value={formData.content_ru}
-                        onChange={(e) =>
-                          setFormData({ ...formData, content_ru: e.target.value })
-                        }
-                        rows={6}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100 transition-colors"
-                      />
-                    </div>
-                  </div>
+                <div className="pt-4">
+                  <ImageUpload
+                    label="Asosiy rasm"
+                    value={formData.image}
+                    onChange={(file) => setFormData({ ...formData, image: file })}
+                    placeholder="Yangilik rasmini yuklash uchun bosing"
+                  />
                 </div>
 
-                <ImageUpload
-                  label="Asosiy rasm"
-                  value={formData.image}
-                  onChange={(file) => setFormData({ ...formData, image: file })}
-                  placeholder="Yangilik rasmini yuklash uchun bosing"
-                />
-
-                <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-white dark:bg-[#1f2937] border-t border-gray-200 dark:border-gray-700 py-4 z-10 transition-colors">
+                <div className="flex justify-end gap-4 pt-8 border-t border-gray-100 dark:border-gray-700">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-6 py-2 border border-gray-200 dark:border-gray-700 text-[#1f2937] dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    className="px-8 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                   >
                     Bekor qilish
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-8 py-2 bg-[#0d89b1] text-white rounded-lg hover:bg-[#0a6d8f] transition-colors flex items-center gap-2 disabled:opacity-50"
+                    className="flex items-center gap-2 px-12 py-3 bg-[#0d89b1] text-white font-bold rounded-xl hover:bg-[#0a6d8f] transition-all shadow-xl shadow-[#0d89b1]/20 active:scale-[0.98] disabled:opacity-50"
                   >
-                    {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isSubmitting && <Loader2 className="w-5 h-5 animate-spin" />}
                     {editingNews ? "Saqlash" : "Qo'shish"}
                   </button>
                 </div>

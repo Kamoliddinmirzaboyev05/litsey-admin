@@ -13,6 +13,13 @@ interface TeacherTranslation {
   achievements?: string;
 }
 
+interface Department {
+  id: number;
+  slug: string;
+  name_uz: string;
+  name_ru?: string;
+}
+
 interface Teacher {
   id: number;
   slug: string;
@@ -21,8 +28,8 @@ interface Teacher {
   academic_rank: string;
   category: string;
   experience_years: number;
-  sort_order?: number;
-  department?: string | number;
+  sort_order: number;
+  department: number | Department;
   email: string;
   phone?: string;
   photo: string;
@@ -35,12 +42,14 @@ interface Teacher {
 
 export default function Oqituvchilar() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -64,6 +73,11 @@ export default function Oqituvchilar() {
     photo: null as File | string | null,
   });
 
+  const languages = [
+    { id: "uz", label: "O'zbekcha" },
+    { id: "ru", label: "Русский" },
+  ] as const;
+
   useEffect(() => {
     fetchTeachers();
   }, []);
@@ -71,12 +85,26 @@ export default function Oqituvchilar() {
   const fetchTeachers = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/teachers/`);
-      const data = await response.json();
-      if (response.ok) {
+      const token = sessionStorage.getItem("auth_token");
+      const [teacherRes, deptRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/teachers/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_BASE_URL}/departments/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      if (teacherRes.ok) {
+        const data = await teacherRes.json();
         setTeachers(Array.isArray(data) ? data : data.results || []);
       } else {
         toast.error("O'qituvchilarni yuklashda xatolik");
+      }
+
+      if (deptRes.ok) {
+        const data = await deptRes.json();
+        setDepartments(Array.isArray(data) ? data : data.results || []);
       }
     } catch (error) {
       toast.error("Server bilan bog'lanishda xatolik");
@@ -124,12 +152,12 @@ export default function Oqituvchilar() {
       academic_degree: teacher.academic_degree || "Yo'q",
       academic_rank: teacher.academic_rank || "Yo'q",
       category: teacher.category || "none",
-      experience_years: teacher.experience_years || 0,
-      sort_order: (teacher as any).sort_order || 0,
-      email: teacher.email || "",
+      experience_years: teacher.experience_years,
+      sort_order: teacher.sort_order || 0,
+      email: teacher.email,
       phone: teacher.phone || "",
       is_active: teacher.is_active,
-      position_uz: teacher.translations?.uz?.position || "",
+      position_uz: teacher.translations.uz.position || "",
       position_ru: teacher.translations?.ru?.position || "",
       subject_uz: teacher.translations?.uz?.subject || "",
       subject_ru: teacher.translations?.ru?.subject || "",
@@ -137,7 +165,7 @@ export default function Oqituvchilar() {
       bio_ru: teacher.translations?.ru?.bio || "",
       achievements_uz: teacher.translations?.uz?.achievements || "",
       achievements_ru: teacher.translations?.ru?.achievements || "",
-      department: (teacher as any).department || "",
+      department: (teacher.department && typeof teacher.department === 'object') ? String(teacher.department.id) : String(teacher.department || ""),
       photo: getImageUrl(teacher.photo),
     });
     setIsModalOpen(true);
@@ -317,6 +345,9 @@ export default function Oqituvchilar() {
                     Lavozim
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
+                    Kafedra
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
                     Tajriba
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-[#64748b] dark:text-gray-400 uppercase tracking-wider">
@@ -345,6 +376,12 @@ export default function Oqituvchilar() {
                     <td className="px-6 py-4">
                       <span className="text-sm text-[#64748b] dark:text-gray-400">
                         {teacher.translations?.uz?.position}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-[#64748b] dark:text-gray-400">
+                        {teacher.department && typeof teacher.department === 'object' ? teacher.department.name_uz : 
+                         (teacher.department ? departments.find(d => d.id === teacher.department)?.name_uz : null) || "Kafedrasiz"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -400,6 +437,13 @@ export default function Oqituvchilar() {
                 
                 <div className="mt-4 space-y-2">
                   <div className="text-sm">
+                    <span className="text-[#64748b] dark:text-gray-400">Kafedra:</span>
+                    <p className="text-[#1f2937] dark:text-gray-200 mt-1">
+                      {teacher.department && typeof teacher.department === 'object' ? teacher.department.name_uz : 
+                       (teacher.department ? departments.find(d => d.id === teacher.department)?.name_uz : null) || "Kafedrasiz"}
+                    </p>
+                  </div>
+                  <div className="text-sm">
                     <span className="text-[#64748b] dark:text-gray-400">Tajriba:</span>
                     <p className="text-[#1f2937] dark:text-gray-200 mt-1">{teacher.experience_years} yil</p>
                   </div>
@@ -433,109 +477,238 @@ export default function Oqituvchilar() {
       {/* Modal */}
       {isModalOpen && (
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-[#1f2937] rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto border dark:border-gray-700 shadow-xl transition-colors">
-              <div className="sticky top-0 bg-white dark:bg-[#1f2937] border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10">
-                <h2 className="text-lg font-semibold text-[#1f2937] dark:text-gray-100">
-                  {editingTeacher
-                    ? "O'qituvchini tahrirlash"
-                    : "Yangi o'qituvchi qo'shish"}
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-[#1f2937] rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border dark:border-gray-700 shadow-2xl transition-all animate-in fade-in zoom-in duration-200">
+              <div className="sticky top-0 bg-white/80 dark:bg-[#1f2937]/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-700 px-8 py-6 flex items-center justify-between z-10">
+                <h2 className="text-2xl font-bold text-[#1f2937] dark:text-gray-100">
+                  {editingTeacher ? "O'qituvchini tahrirlash" : "Yangi o'qituvchi qo'shish"}
                 </h2>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors text-[#64748b] dark:text-gray-400"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-4">
+                  <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                    {languages.map((lang) => (
+                      <button
+                        key={lang.id}
+                        type="button"
+                        onClick={() => setActiveTab(lang.id as "uz" | "ru")}
+                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                          activeTab === lang.id
+                            ? "bg-white dark:bg-gray-700 text-[#0d89b1] shadow-sm"
+                            : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                        }`}
+                      >
+                        {lang.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-[#64748b] dark:text-gray-400"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
               
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <ImageUpload
-                      label="Foto"
-                      value={formData.photo}
-                      onChange={(file) => setFormData({ ...formData, photo: file })}
-                      placeholder="O'qituvchi fotosuratini yuklash uchun bosing"
-                    />
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                        To'liq ismi *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.full_name}
-                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        required
+              <form onSubmit={handleSubmit} className="p-8 space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                  {/* Left Column: Photo and Basic Info */}
+                  <div className="space-y-8">
+                    <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-6">
+                      <ImageUpload
+                        label="O'qituvchi fotosurati"
+                        value={formData.photo}
+                        onChange={(file) => setFormData({ ...formData, photo: file })}
+                        placeholder="Fotosuratni yuklash uchun bosing"
                       />
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            To'liq ismi *
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.full_name}
+                            onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                            className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
+                            required
+                            placeholder="Masalan: Eshmatov Toshmat"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                              Tajriba (yil)
+                            </label>
+                            <input
+                              type="text"
+                              value={formData.experience_years}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === "" || /^\d+$/.test(val)) {
+                                  setFormData({ ...formData, experience_years: val === "" ? 0 : Number(val) });
+                                }
+                              }}
+                              className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
+                              placeholder="Masalan: 5"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            Kafedra
+                          </label>
+                          <select
+                            value={formData.department}
+                            onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                            className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
+                          >
+                            <option value="">Kafedrani tanlang</option>
+                            {departments.map((dept) => (
+                              <option key={dept.id} value={dept.id}>
+                                {dept.name_uz}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-4 h-[1px] bg-gray-300" />
+                        Aloqa ma'lumotlari
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            Telefon
+                          </label>
+                          <input
+                            type="tel"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            placeholder="+998 90 123 45 67"
+                            className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            placeholder="misol@mail.com"
+                            className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                        Lavozimi (UZ) *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.position_uz}
-                        onChange={(e) => setFormData({ ...formData, position_uz: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                        required
-                      />
+                  {/* Right Column: Academic and Translations */}
+                  <div className="space-y-8">
+                    <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-6">
+                      <h3 className="text-xs font-bold text-[#0d89b1] uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-4 h-[1px] bg-[#0d89b1]" />
+                        {languages.find(l => l.id === activeTab)?.label} tilidagi ma'lumotlar
+                      </h3>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            Lavozimi ({activeTab.toUpperCase()}) *
+                          </label>
+                          <input
+                            type="text"
+                            value={activeTab === "uz" ? formData.position_uz : formData.position_ru}
+                            onChange={(e) => {
+                              const field = `position_${activeTab}` as keyof typeof formData;
+                              setFormData({ ...formData, [field]: e.target.value });
+                            }}
+                            className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
+                            required={activeTab === "uz"}
+                            placeholder="Masalan: Matematika o'qituvchisi"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            Fani ({activeTab.toUpperCase()})
+                          </label>
+                          <input
+                            type="text"
+                            value={activeTab === "uz" ? formData.subject_uz : formData.subject_ru}
+                            onChange={(e) => {
+                              const field = `subject_${activeTab}` as keyof typeof formData;
+                              setFormData({ ...formData, [field]: e.target.value });
+                            }}
+                            className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100"
+                            placeholder="Masalan: Matematika"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            Biografiya ({activeTab.toUpperCase()})
+                          </label>
+                          <textarea
+                            value={activeTab === "uz" ? formData.bio_uz : formData.bio_ru}
+                            onChange={(e) => {
+                              const field = `bio_${activeTab}` as keyof typeof formData;
+                              setFormData({ ...formData, [field]: e.target.value });
+                            }}
+                            rows={4}
+                            className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100 resize-none"
+                            placeholder="O'qituvchi haqida qisqacha ma'lumot..."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            Yutuqlari ({activeTab.toUpperCase()})
+                          </label>
+                          <textarea
+                            value={activeTab === "uz" ? formData.achievements_uz : formData.achievements_ru}
+                            onChange={(e) => {
+                              const field = `achievements_${activeTab}` as keyof typeof formData;
+                              setFormData({ ...formData, [field]: e.target.value });
+                            }}
+                            rows={3}
+                            className="w-full px-5 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all dark:text-gray-100 resize-none"
+                            placeholder="O'qituvchining yutuqlari..."
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                        Tajriba (yil)
-                      </label>
+
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
                       <input
-                        type="number"
-                        value={formData.experience_years}
-                        onChange={(e) => setFormData({ ...formData, experience_years: Number(e.target.value) })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
+                        type="checkbox"
+                        id="is_active_teacher"
+                        checked={formData.is_active}
+                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                        className="w-5 h-5 rounded-md text-[#0d89b1] focus:ring-[#0d89b1]"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                        Telefon raqami
+                      <label htmlFor="is_active_teacher" className="text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer">
+                        Faol holatda (saytda ko'rinadi)
                       </label>
-                      <input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="+998 90 123 45 67"
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200 mb-2">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-[#0d89b1] dark:text-gray-100"
-                      />
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-700 transition-colors">
+                <div className="flex justify-end gap-4 pt-8 border-t border-gray-100 dark:border-gray-700">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-6 py-2 border border-gray-200 dark:border-gray-700 text-[#1f2937] dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    className="px-8 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                   >
                     Bekor qilish
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-8 py-2 bg-[#0d89b1] text-white rounded-lg hover:bg-[#0a6d8f] transition-colors flex items-center gap-2 disabled:opacity-50"
+                    className="flex items-center gap-2 px-12 py-3 bg-[#0d89b1] text-white font-bold rounded-xl hover:bg-[#0a6d8f] transition-all shadow-xl shadow-[#0d89b1]/20 active:scale-[0.98] disabled:opacity-50"
                   >
-                    {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isSubmitting && <Loader2 className="w-5 h-5 animate-spin" />}
                     {editingTeacher ? "Saqlash" : "Qo'shish"}
                   </button>
                 </div>

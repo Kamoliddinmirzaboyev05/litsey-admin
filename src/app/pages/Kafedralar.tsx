@@ -36,18 +36,14 @@ export default function Kafedralar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"uz" | "ru" | "en" | "uz_cyrl">("uz");
+  const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
   const [subjectInput, setSubjectInput] = useState("");
 
   const [formData, setFormData] = useState({
     name_uz: "",
-    name_uz_cyrl: "",
     name_ru: "",
-    name_en: "",
     description_uz: "",
-    description_uz_cyrl: "",
     description_ru: "",
-    description_en: "",
     head_teacher: "" as string | number,
     subjects: [] as string[],
     room_number: "",
@@ -60,8 +56,8 @@ export default function Kafedralar() {
   const languages = [
     { id: "uz", label: "O'zbekcha" },
     { id: "ru", label: "Русский" },
-    { id: "en", label: "English" },
-    { id: "uz_cyrl", label: "Криллча" },
+    // { id: "en", label: "English" },
+    // { id: "uz_cyrl", label: "Криллcha" },
   ] as const;
 
   useEffect(() => {
@@ -97,20 +93,16 @@ export default function Kafedralar() {
   };
 
   const filteredDepartments = departments.filter((d) =>
-    d.name_uz.toLowerCase().includes(searchQuery.toLowerCase())
+    (d.name_uz || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleAdd = () => {
     setEditingDept(null);
     setFormData({
       name_uz: "",
-      name_uz_cyrl: "",
       name_ru: "",
-      name_en: "",
       description_uz: "",
-      description_uz_cyrl: "",
       description_ru: "",
-      description_en: "",
       head_teacher: "",
       subjects: [],
       room_number: "",
@@ -127,13 +119,9 @@ export default function Kafedralar() {
     setEditingDept(dept);
     setFormData({
       name_uz: dept.name_uz || "",
-      name_uz_cyrl: dept.name_uz_cyrl || "",
       name_ru: dept.name_ru || "",
-      name_en: dept.name_en || "",
       description_uz: dept.description_uz || "",
-      description_uz_cyrl: dept.description_uz_cyrl || "",
       description_ru: dept.description_ru || "",
-      description_en: dept.description_en || "",
       head_teacher: typeof dept.head_teacher === 'object' ? dept.head_teacher.id : dept.head_teacher || "",
       subjects: dept.subjects || [],
       room_number: dept.room_number || "",
@@ -331,7 +319,7 @@ export default function Kafedralar() {
         ))}
 
         {filteredDepartments.length === 0 && (
-          <div className="col-span-full py-20 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-800/30 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2.5rem]">
+          <div className="col-span-full py-20 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-800/30 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
             <Users className="w-16 h-16 text-gray-300 mb-4" />
             <p className="text-gray-500 dark:text-gray-400 font-bold text-lg">Kafedralar topilmadi</p>
           </div>
@@ -342,7 +330,7 @@ export default function Kafedralar() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-          <div className="relative bg-white dark:bg-[#1f2937] w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] shadow-2xl border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
+          <div className="relative bg-white dark:bg-[#1f2937] w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
             <div className="sticky top-0 bg-white/80 dark:bg-[#1f2937]/80 backdrop-blur-md px-10 py-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center z-10">
               <h3 className="text-2xl font-bold text-[#1f2937] dark:text-gray-100">
                 {editingDept ? "Kafedrani tahrirlash" : "Yangi kafedra qo'shish"}
@@ -353,7 +341,7 @@ export default function Kafedralar() {
                     <button
                       key={lang.id}
                       type="button"
-                      onClick={() => setActiveTab(lang.id)}
+                      onClick={() => setActiveTab(lang.id as "uz" | "ru")}
                       className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
                         activeTab === lang.id
                           ? "bg-white dark:bg-gray-700 text-[#0d89b1] shadow-sm"
@@ -375,7 +363,7 @@ export default function Kafedralar() {
 
             <form onSubmit={handleSubmit} className="p-10 space-y-10">
               {/* Language Specific Fields */}
-              <div className="p-8 bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] border border-gray-100 dark:border-gray-700 space-y-6">
+              <div className="p-8 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-6">
                 <h4 className="text-xs font-bold text-[#0d89b1] uppercase tracking-widest flex items-center gap-2">
                   <span className="w-4 h-[1px] bg-[#0d89b1]" />
                   {languages.find(l => l.id === activeTab)?.label} tilidagi ma'lumotlar
@@ -389,10 +377,7 @@ export default function Kafedralar() {
                     <input
                       type="text"
                       value={
-                        activeTab === "uz" ? formData.name_uz :
-                        activeTab === "ru" ? formData.name_ru :
-                        activeTab === "en" ? formData.name_en :
-                        formData.name_uz_cyrl
+                        activeTab === "uz" ? formData.name_uz : formData.name_ru
                       }
                       onChange={(e) => {
                         const field = `name_${activeTab}` as keyof typeof formData;
@@ -409,10 +394,7 @@ export default function Kafedralar() {
                     </label>
                     <textarea
                       value={
-                        activeTab === "uz" ? formData.description_uz :
-                        activeTab === "ru" ? formData.description_ru :
-                        activeTab === "en" ? formData.description_en :
-                        formData.description_uz_cyrl
+                        activeTab === "uz" ? formData.description_uz : formData.description_ru
                       }
                       onChange={(e) => {
                         const field = `description_${activeTab}` as keyof typeof formData;
@@ -449,7 +431,7 @@ export default function Kafedralar() {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Xona raqami</label>
                         <input
@@ -458,15 +440,6 @@ export default function Kafedralar() {
                           onChange={(e) => setFormData({ ...formData, room_number: e.target.value })}
                           className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all"
                           placeholder="Masalan: 201"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Tartib</label>
-                        <input
-                          type="number"
-                          value={formData.sort_order}
-                          onChange={(e) => setFormData({ ...formData, sort_order: Number(e.target.value) })}
-                          className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all"
                         />
                       </div>
                     </div>

@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
-import { Save, Loader2, AlertCircle, ExternalLink, Plus, Trash2, Edit, FileText, Check, X, BookOpen } from "lucide-react";
+import { 
+  Plus, Edit, Trash2, X, Loader2, FileText, CheckCircle2, 
+  Settings2, BookOpen, Save, Trash, AlertCircle
+} from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL, getImageUrl } from "../../config/api";
 
 interface AdmissionData {
+  id: number;
   academic_year: string;
   total_quota: number;
   grant_quota: number;
@@ -19,55 +23,54 @@ interface AdmissionData {
 
 interface AdmissionDocument {
   id: number;
+  document_name_uz: string;
+  document_name_ru?: string;
+  document_name_en?: string;
+  document_name_uz_cyrl?: string;
+  note_uz: string;
+  note_ru?: string;
+  note_en?: string;
+  note_uz_cyrl?: string;
+  document_file: string;
   is_required: boolean;
   sort_order: number;
-  document_name_uz: string;
-  document_name_ru: string;
-  document_name_en: string;
-  document_name_uz_cyrl: string;
-  note_uz: string;
-  note_uz_cyrl: string;
-  note_ru: string;
-  note_en: string;
-  document_file: string | null;
 }
 
 interface AdmissionSubject {
   id: number;
-  subject_type: string;
+  subject_type: "test" | "creative" | "interview";
   max_score: number;
   sort_order: number;
   subject_name_uz: string;
-  subject_name_ru: string;
-  subject_name_en: string;
-  subject_name_uz_cyrl: string;
+  subject_name_ru?: string;
+  subject_name_en?: string;
+  subject_name_uz_cyrl?: string;
   description_uz: string;
-  description_uz_cyrl: string;
-  description_ru: string;
-  description_en: string;
+  description_ru?: string;
+  description_en?: string;
+  description_uz_cyrl?: string;
 }
 
-const initialData: AdmissionData = {
-  academic_year: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
-  total_quota: 0,
-  grant_quota: 0,
-  contract_quota: 0,
-  contract_price: "",
-  application_start: new Date().toISOString().split("T")[0],
-  application_end: "",
-  exam_date: "",
-  results_date: "",
-  online_apply_url: "",
-  is_active: true,
-};
-
 export default function Qabul() {
-  const [formData, setFormData] = useState<AdmissionData>(initialData);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    academic_year: "",
+    total_quota: 0,
+    grant_quota: 0,
+    contract_quota: 0,
+    contract_price: "",
+    application_start: "",
+    application_end: "",
+    exam_date: "",
+    results_date: "",
+    online_apply_url: "",
+    is_active: true,
+  });
+
   const [currentAdmission, setCurrentAdmission] = useState<AdmissionData | null>(null);
   
-  const [activeTab, setActiveTab] = useState<"uz" | "ru" | "en" | "uz_cyrl">("uz");
+  const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
 
   // Documents state
   const [documents, setDocuments] = useState<AdmissionDocument[]>([]);
@@ -79,12 +82,8 @@ export default function Qabul() {
     sort_order: 0,
     document_name_uz: "",
     document_name_ru: "",
-    document_name_en: "",
-    document_name_uz_cyrl: "",
     note_uz: "",
-    note_uz_cyrl: "",
     note_ru: "",
-    note_en: "",
     document_file: null as File | string | null,
   });
 
@@ -94,24 +93,20 @@ export default function Qabul() {
   const [editingSub, setEditingSub] = useState<AdmissionSubject | null>(null);
   const [isSubSubmitting, setIsSubSubmitting] = useState(false);
   const [subFormData, setSubFormData] = useState({
-    subject_type: "test",
+    subject_type: "test" as AdmissionSubject["subject_type"],
     max_score: 10,
     sort_order: 0,
     subject_name_uz: "",
     subject_name_ru: "",
-    subject_name_en: "",
-    subject_name_uz_cyrl: "",
     description_uz: "",
-    description_uz_cyrl: "",
     description_ru: "",
-    description_en: "",
   });
 
   const languages = [
     { id: "uz", label: "O'zbekcha" },
     { id: "ru", label: "Русский" },
-    { id: "en", label: "English" },
-    { id: "uz_cyrl", label: "Криллча" },
+    // { id: "en", label: "English" },
+    // { id: "uz_cyrl", label: "Криллча" },
   ] as const;
 
   useEffect(() => {
@@ -122,7 +117,7 @@ export default function Qabul() {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("auth_token");
-      const [admissionRes, docsRes, subsRes] = await Promise.all([
+      const [admRes, docRes, subRes] = await Promise.all([
         fetch(`${API_BASE_URL}/admission/current/`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
@@ -131,26 +126,44 @@ export default function Qabul() {
         }),
         fetch(`${API_BASE_URL}/admission/subjects/`, {
           headers: { Authorization: `Bearer ${token}` },
-        })
+        }),
       ]);
 
-      if (admissionRes.ok) {
-        const data = await admissionRes.json();
-        setCurrentAdmission(data);
-        setFormData(data);
+      if (admRes.status === 404) {
+        // No current admission record yet, which is fine
+        setCurrentAdmission(null);
+      } else if (admRes.ok) {
+        const data = await admRes.json();
+        const latest = Array.isArray(data) ? data[0] : data;
+        if (latest) {
+          setCurrentAdmission(latest.id ? latest : null);
+          setFormData({
+            academic_year: latest.academic_year || "",
+            total_quota: latest.total_quota ?? 0,
+            grant_quota: latest.grant_quota ?? 0,
+            contract_quota: latest.contract_quota ?? 0,
+            contract_price: latest.contract_price || "",
+            application_start: latest.application_start?.split("T")[0] || "",
+            application_end: latest.application_end?.split("T")[0] || "",
+            exam_date: latest.exam_date?.split("T")[0] || "",
+            results_date: latest.results_date?.split("T")[0] || "",
+            online_apply_url: latest.online_apply_url || "",
+            is_active: latest.is_active ?? true,
+          });
+        }
       }
-      
-      if (docsRes.ok) {
-        const data = await docsRes.json();
+
+      if (docRes.ok) {
+        const data = await docRes.json();
         setDocuments(Array.isArray(data) ? data : data.results || []);
       }
 
-      if (subsRes.ok) {
-        const data = await subsRes.json();
+      if (subRes.ok) {
+        const data = await subRes.json();
         setSubjects(Array.isArray(data) ? data : data.results || []);
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      toast.error("Ma'lumotlarni yuklashda xatolik");
     } finally {
       setLoading(false);
     }
@@ -169,17 +182,27 @@ export default function Qabul() {
 
     try {
       const token = sessionStorage.getItem("auth_token");
+      const method = currentAdmission ? "PUT" : "POST";
+      
+      // Ensure numeric fields are actually numbers
+      const payload = {
+        ...formData,
+        total_quota: Number(formData.total_quota) || 0,
+        grant_quota: Number(formData.grant_quota) || 0,
+        contract_quota: Number(formData.contract_quota) || 0,
+      };
+
       const response = await fetch(`${API_BASE_URL}/admission/current/`, {
-        method: "POST",
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        toast.success("Qabul muvaffaqiyatli saqlandi");
+        toast.success(currentAdmission ? "Qabul ma'lumotlari yangilandi" : "Qabul muvaffaqiyatli yaratildi");
         fetchData();
       } else {
         const errData = await response.json();
@@ -192,7 +215,7 @@ export default function Qabul() {
     }
   };
 
-  // Document actions
+  // Documents handlers
   const handleAddDoc = () => {
     setEditingDoc(null);
     setDocFormData({
@@ -200,12 +223,8 @@ export default function Qabul() {
       sort_order: documents.length,
       document_name_uz: "",
       document_name_ru: "",
-      document_name_en: "",
-      document_name_uz_cyrl: "",
       note_uz: "",
-      note_uz_cyrl: "",
       note_ru: "",
-      note_en: "",
       document_file: null,
     });
     setIsDocModalOpen(true);
@@ -218,35 +237,27 @@ export default function Qabul() {
       sort_order: doc.sort_order,
       document_name_uz: doc.document_name_uz || "",
       document_name_ru: doc.document_name_ru || "",
-      document_name_en: doc.document_name_en || "",
-      document_name_uz_cyrl: doc.document_name_uz_cyrl || "",
       note_uz: doc.note_uz || "",
-      note_uz_cyrl: doc.note_uz_cyrl || "",
       note_ru: doc.note_ru || "",
-      note_en: doc.note_en || "",
-      document_file: doc.document_file ? getImageUrl(doc.document_file) : null,
+      document_file: getImageUrl(doc.document_file),
     });
     setIsDocModalOpen(true);
   };
 
   const handleDeleteDoc = async (id: number) => {
     if (!confirm("Ushbu hujjatni o'chirmoqchimisiz?")) return;
-    
     try {
       const token = sessionStorage.getItem("auth_token");
       const response = await fetch(`${API_BASE_URL}/admission/documents/${id}/`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (response.ok) {
         toast.success("Hujjat o'chirildi");
         fetchData();
-      } else {
-        toast.error("O'chirishda xatolik yuz berdi");
       }
     } catch (error) {
-      toast.error("Server bilan bog'lanishda xatolik");
+      toast.error("Xatolik yuz berdi");
     }
   };
 
@@ -260,12 +271,8 @@ export default function Qabul() {
     data.append("sort_order", String(docFormData.sort_order));
     data.append("document_name_uz", docFormData.document_name_uz);
     data.append("document_name_ru", docFormData.document_name_ru);
-    data.append("document_name_en", docFormData.document_name_en);
-    data.append("document_name_uz_cyrl", docFormData.document_name_uz_cyrl);
     data.append("note_uz", docFormData.note_uz);
-    data.append("note_uz_cyrl", docFormData.note_uz_cyrl);
     data.append("note_ru", docFormData.note_ru);
-    data.append("note_en", docFormData.note_en);
 
     if (docFormData.document_file instanceof File) {
       data.append("document_file", docFormData.document_file);
@@ -273,7 +280,7 @@ export default function Qabul() {
 
     try {
       const url = editingDoc 
-        ? `${API_BASE_URL}/admission/documents/${editingDoc.id}/`
+        ? `${API_BASE_URL}/admission/documents/${editingDoc.id}/` 
         : `${API_BASE_URL}/admission/documents/`;
       const method = editingDoc ? "PATCH" : "POST";
 
@@ -288,8 +295,7 @@ export default function Qabul() {
         setIsDocModalOpen(false);
         fetchData();
       } else {
-        const errData = await response.json();
-        toast.error(errData.detail || "Xatolik yuz berdi");
+        toast.error("Xatolik yuz berdi");
       }
     } catch (error) {
       toast.error("Server bilan bog'lanishda xatolik");
@@ -298,7 +304,7 @@ export default function Qabul() {
     }
   };
 
-  // Subject actions
+  // Subjects handlers
   const handleAddSub = () => {
     setEditingSub(null);
     setSubFormData({
@@ -307,12 +313,8 @@ export default function Qabul() {
       sort_order: subjects.length,
       subject_name_uz: "",
       subject_name_ru: "",
-      subject_name_en: "",
-      subject_name_uz_cyrl: "",
       description_uz: "",
-      description_uz_cyrl: "",
       description_ru: "",
-      description_en: "",
     });
     setIsSubModalOpen(true);
   };
@@ -320,39 +322,31 @@ export default function Qabul() {
   const handleEditSub = (sub: AdmissionSubject) => {
     setEditingSub(sub);
     setSubFormData({
-      subject_type: sub.subject_type || "test",
-      max_score: sub.max_score || 10,
-      sort_order: sub.sort_order || 0,
+      subject_type: sub.subject_type,
+      max_score: sub.max_score,
+      sort_order: sub.sort_order,
       subject_name_uz: sub.subject_name_uz || "",
       subject_name_ru: sub.subject_name_ru || "",
-      subject_name_en: sub.subject_name_en || "",
-      subject_name_uz_cyrl: sub.subject_name_uz_cyrl || "",
       description_uz: sub.description_uz || "",
-      description_uz_cyrl: sub.description_uz_cyrl || "",
       description_ru: sub.description_ru || "",
-      description_en: sub.description_en || "",
     });
     setIsSubModalOpen(true);
   };
 
   const handleDeleteSub = async (id: number) => {
-    if (!confirm("Ushbu imtihon fanini o'chirmoqchimisiz?")) return;
-    
+    if (!confirm("Ushbu fanni o'chirmoqchimisiz?")) return;
     try {
       const token = sessionStorage.getItem("auth_token");
       const response = await fetch(`${API_BASE_URL}/admission/subjects/${id}/`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (response.ok) {
         toast.success("Fan o'chirildi");
         fetchData();
-      } else {
-        toast.error("O'chirishda xatolik yuz berdi");
       }
     } catch (error) {
-      toast.error("Server bilan bog'lanishda xatolik");
+      toast.error("Xatolik yuz berdi");
     }
   };
 
@@ -361,18 +355,17 @@ export default function Qabul() {
     setIsSubSubmitting(true);
 
     const token = sessionStorage.getItem("auth_token");
-    
     try {
       const url = editingSub 
-        ? `${API_BASE_URL}/admission/subjects/${editingSub.id}/`
+        ? `${API_BASE_URL}/admission/subjects/${editingSub.id}/` 
         : `${API_BASE_URL}/admission/subjects/`;
       const method = editingSub ? "PATCH" : "POST";
 
       const response = await fetch(url, {
         method,
         headers: { 
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
         },
         body: JSON.stringify(subFormData),
       });
@@ -382,8 +375,7 @@ export default function Qabul() {
         setIsSubModalOpen(false);
         fetchData();
       } else {
-        const errData = await response.json();
-        toast.error(errData.detail || "Xatolik yuz berdi");
+        toast.error("Xatolik yuz berdi");
       }
     } catch (error) {
       toast.error("Server bilan bog'lanishda xatolik");
@@ -401,407 +393,308 @@ export default function Qabul() {
   }
 
   return (
-    <div className="p-6 space-y-8 max-w-[1200px] mx-auto">
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto overflow-x-hidden">
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#1f2937] p-5 md:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
         <div>
-          <h1 className="text-2xl font-bold text-[#1f2937] dark:text-gray-100">Qabul jarayoni</h1>
-          <p className="text-[#64748b] dark:text-gray-400 mt-1">
-            Yangi o'quv yili uchun qabul va hujjatlar sozlamalari
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+            <Settings2 className="w-6 h-6 md:w-8 md:h-8 text-[#0d89b1]" />
+            Qabul boshqaruvi
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Akademik yil, kvotalar va hujjatlarni sozlash
           </p>
         </div>
-        {currentAdmission && (
-          <div className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-2 rounded-full flex items-center gap-2 text-sm font-medium border border-green-200 dark:border-green-800 shadow-sm">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            Faol qabul mavjud
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchData}
+            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-[#0d89b1] transition-colors"
+          >
+            Ma'lumotlarni yangilash
+          </button>
+        </div>
       </div>
 
-      {/* Warning if active admission exists */}
-      {currentAdmission && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-xl flex gap-3 shadow-sm">
-          <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0" />
-          <p className="text-sm text-amber-800 dark:text-amber-400 leading-relaxed">
-            Diqqat! Hozirda faol qabul jarayoni mavjud. Yangi qabul yaratish uchun joriy qabulni to'xtatish yoki yakunlash kerak bo'lishi mumkin. 
-            Backend qoidalari bo'yicha faqat bitta faol qabul bo'lishi mumkin.
-          </p>
-        </div>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
+        {/* Left: General Settings */}
+        <div className="lg:col-span-7 space-y-6 md:space-y-8">
+          <section className="bg-white dark:bg-[#1f2937] p-5 md:p-8 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white mb-6 md:mb-8 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6 text-[#0d89b1]" />
+              Joriy qabul sozlamalari
+            </h2>
 
-      <div className="grid grid-cols-1 gap-8">
-        {/* Basic Info Form */}
-        <section className="bg-white dark:bg-[#1f2937] rounded-2xl border border-gray-200 dark:border-gray-700 p-8 shadow-sm">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-1.5 h-6 bg-[#0d89b1] rounded-full" />
-            <h2 className="text-xl font-bold text-[#1f2937] dark:text-gray-100">Asosiy ma'lumotlar</h2>
-          </div>
-          
-          <form onSubmit={handleAdmissionSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    O'quv yili
-                  </label>
+            <form onSubmit={handleAdmissionSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Akademik yil</label>
                   <input
                     type="text"
-                    value={formData.academic_year}
+                    value={formData.academic_year || ""}
                     onChange={(e) => setFormData({ ...formData, academic_year: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all text-sm"
                     placeholder="Masalan: 2024-2025"
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] transition-all outline-none"
                     required
                   />
                 </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Jami kvota
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.total_quota}
-                      onChange={(e) => setFormData({ ...formData, total_quota: Number(e.target.value) })}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] transition-all outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Grant
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.grant_quota}
-                      onChange={(e) => setFormData({ ...formData, grant_quota: Number(e.target.value) })}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] transition-all outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Kontrakt
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.contract_quota}
-                      onChange={(e) => setFormData({ ...formData, contract_quota: Number(e.target.value) })}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] transition-all outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Kontrakt narxi
-                  </label>
+                <div className="space-y-2">
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Shartnoma narxi</label>
                   <input
                     type="text"
-                    value={formData.contract_price}
+                    value={formData.contract_price || ""}
                     onChange={(e) => setFormData({ ...formData, contract_price: e.target.value })}
-                    placeholder="Masalan: 12 000 000 so'm"
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] transition-all outline-none"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all text-sm"
+                    placeholder="Masalan: 12 000 000 UZS"
                     required
                   />
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Online ariza URL
-                  </label>
-                  <div className="relative group">
-                    <input
-                      type="url"
-                      value={formData.online_apply_url}
-                      onChange={(e) => setFormData({ ...formData, online_apply_url: e.target.value })}
-                      placeholder="https://example.com/apply"
-                      className="w-full pl-4 pr-12 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] transition-all outline-none"
-                      required
-                    />
-                    {formData.online_apply_url && (
-                      <a 
-                        href={formData.online_apply_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0d89b1] p-1 rounded-md hover:bg-white dark:hover:bg-gray-700 transition-colors"
-                      >
-                        <ExternalLink className="w-5 h-5" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 pt-2">
+              <div className="grid grid-cols-3 gap-3 md:gap-4 p-4 md:p-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                <div className="space-y-2">
+                  <label className="text-[10px] md:text-xs font-bold text-gray-500 uppercase">Jami kvota</label>
                   <input
-                    type="checkbox"
-                    id="is_active"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="w-5 h-5 rounded-md border-gray-300 text-[#0d89b1] focus:ring-[#0d89b1] transition-all"
+                    type="text"
+                    value={formData.total_quota ?? 0}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d+$/.test(val)) {
+                        setFormData({ ...formData, total_quota: val === "" ? 0 : Number(val) });
+                      }
+                    }}
+                    className="w-full px-3 md:px-4 py-2 md:py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-[#0d89b1]/20 outline-none text-sm"
                   />
-                  <label htmlFor="is_active" className="text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer">
-                    Hozirda faol (ko'rsatish)
-                  </label>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] md:text-xs font-bold text-green-600 uppercase">Grant</label>
+                  <input
+                    type="text"
+                    value={formData.grant_quota ?? 0}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d+$/.test(val)) {
+                        setFormData({ ...formData, grant_quota: val === "" ? 0 : Number(val) });
+                      }
+                    }}
+                    className="w-full px-3 md:px-4 py-2 md:py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-green-500/20 outline-none text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] md:text-xs font-bold text-blue-600 uppercase">Kontrakt</label>
+                  <input
+                    type="text"
+                    value={formData.contract_quota ?? 0}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d+$/.test(val)) {
+                        setFormData({ ...formData, contract_quota: val === "" ? 0 : Number(val) });
+                      }
+                    }}
+                    className="w-full px-3 md:px-4 py-2 md:py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none text-sm"
+                  />
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Qabul boshlanishi
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.application_start}
-                      onChange={(e) => setFormData({ ...formData, application_start: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] transition-all outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Qabul tugashi
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.application_end}
-                      onChange={(e) => setFormData({ ...formData, application_end: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] transition-all outline-none"
-                      required
-                    />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Ro'yxatga olish boshlanishi</label>
+                  <input
+                    type="date"
+                    value={formData.application_start}
+                    onChange={(e) => setFormData({ ...formData, application_start: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none text-sm"
+                    required
+                  />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Imtihon sanasi
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.exam_date}
-                      onChange={(e) => setFormData({ ...formData, exam_date: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] transition-all outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Natijalar sanasi
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.results_date}
-                      onChange={(e) => setFormData({ ...formData, results_date: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] transition-all outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="p-5 bg-[#0d89b1]/5 dark:bg-[#0d89b1]/10 border border-[#0d89b1]/20 rounded-2xl">
-                  <h4 className="text-sm font-bold text-[#0d89b1] mb-2 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" />
-                    Eslatma
-                  </h4>
-                  <p className="text-xs text-[#0d89b1]/80 dark:text-[#0d89b1]/90 leading-relaxed font-medium">
-                    Kiritilgan sanalar va kvotalar asosiy sahifadagi qabul blokida ko'rsatiladi. 
-                    Iltimos, ma'lumotlar to'g'riligini qayta tekshiring.
-                  </p>
-                </div>
-
-                <div className="flex justify-end pt-4">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex items-center gap-2 px-10 py-3.5 bg-[#0d89b1] text-white font-bold rounded-xl hover:bg-[#0a6d8f] transition-all shadow-lg shadow-[#0d89b1]/20 active:scale-[0.98] disabled:opacity-50"
-                  >
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                    Saqlash
-                  </button>
+                <div className="space-y-2">
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Ro'yxatga olish tugashi</label>
+                  <input
+                    type="date"
+                    value={formData.application_end}
+                    onChange={(e) => setFormData({ ...formData, application_end: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none text-sm"
+                    required
+                  />
                 </div>
               </div>
-            </div>
-          </form>
-        </section>
 
-        {/* Subjects Section */}
-        <section className="bg-white dark:bg-[#1f2937] rounded-2xl border border-gray-200 dark:border-gray-700 p-8 shadow-sm">
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-1.5 h-6 bg-[#0d89b1] rounded-full" />
-              <h2 className="text-xl font-bold text-[#1f2937] dark:text-gray-100">Imtihon fanlari</h2>
-            </div>
-            <button
-              onClick={handleAddSub}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 dark:bg-gray-800 text-[#1f2937] dark:text-gray-100 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all active:scale-[0.98]"
-            >
-              <Plus className="w-5 h-5" />
-              Yangi fan qo'shish
-            </button>
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Imtihon kuni</label>
+                  <input
+                    type="date"
+                    value={formData.exam_date}
+                    onChange={(e) => setFormData({ ...formData, exam_date: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none text-sm"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Natijalar chiqish kuni</label>
+                  <input
+                    type="date"
+                    value={formData.results_date}
+                    onChange={(e) => setFormData({ ...formData, results_date: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none text-sm"
+                    required
+                  />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {subjects.length > 0 ? (
-              subjects.map((sub) => (
-                <div 
-                  key={sub.id}
-                  className="group bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 hover:border-[#0d89b1] transition-all hover:shadow-md relative overflow-hidden"
-                >
-                  <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                    <button 
-                      onClick={() => handleEditSub(sub)}
-                      className="p-1.5 bg-white dark:bg-gray-700 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors shadow-sm"
-                    >
+              <div className="space-y-2">
+                <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Onlayn ariza topshirish havolasi (URL)</label>
+                <input
+                  type="url"
+                  value={formData.online_apply_url}
+                  onChange={(e) => setFormData({ ...formData, online_apply_url: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all text-sm"
+                  placeholder="https://example.uz/apply"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-4">
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  checked={formData.is_active}
+                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  className="w-5 h-5 rounded text-[#0d89b1] focus:ring-[#0d89b1]"
+                />
+                <label htmlFor="is_active" className="text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer">
+                  Qabulni faollashtirish (Saytda ko'rinadi)
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3.5 md:py-4 bg-[#0d89b1] text-white font-bold rounded-lg hover:bg-[#0a6d8f] transition-all shadow-lg shadow-[#0d89b1]/20 flex items-center justify-center gap-2 text-sm md:text-base"
+              >
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                Qabul ma'lumotlarini saqlash
+              </button>
+            </form>
+          </section>
+
+          {/* Subjects Section */}
+          <section className="bg-white dark:bg-[#1f2937] p-5 md:p-8 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
+            <div className="flex items-center justify-between mb-6 md:mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-[#0d89b1]" />
+                Imtihon fanlari
+              </h2>
+              <button
+                onClick={handleAddSub}
+                className="flex items-center gap-2 px-3 md:px-4 py-2 bg-[#0d89b1]/10 text-[#0d89b1] font-bold rounded-lg hover:bg-[#0d89b1]/20 transition-all text-xs md:text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Fan qo'shish
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {subjects.map((sub) => (
+                <div key={sub.id} className="flex items-center justify-between p-4 md:p-5 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700 hover:border-[#0d89b1]/30 transition-all group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center text-[#0d89b1] font-bold border border-gray-100 dark:border-gray-700 shadow-sm text-sm md:text-base">
+                      {sub.sort_order}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm md:text-base">{sub.subject_name_uz}</h4>
+                      <p className="text-[10px] md:text-xs text-gray-500 font-medium uppercase tracking-wider">
+                        {sub.subject_type} • Max: {sub.max_score} ball
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => handleEditSub(sub)} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md">
                       <Edit className="w-4 h-4" />
                     </button>
-                    <button 
-                      onClick={() => handleDeleteSub(sub.id)}
-                      className="p-1.5 bg-white dark:bg-gray-700 text-red-600 rounded-lg hover:bg-red-50 transition-colors shadow-sm"
-                    >
+                    <button onClick={() => handleDeleteSub(sub.id)} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="p-3 bg-white dark:bg-gray-700 rounded-xl shadow-sm text-[#0d89b1]">
-                      <BookOpen className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-[#1f2937] dark:text-gray-100 line-clamp-1">{sub.subject_name_uz}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">
-                          Maks ball: {sub.max_score}
-                        </span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-500 px-2 py-0.5 rounded">
-                          Sira: {sub.sort_order}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="text-sm text-[#64748b] dark:text-gray-400 line-clamp-2 mb-2 h-10">
-                    {sub.description_uz || "Tavsif yo'q"}
-                  </p>
-                  
-                  <div className="text-[10px] font-bold text-gray-400 uppercase">
-                    Turi: {sub.subject_type}
-                  </div>
                 </div>
-              ))
-            ) : (
-              <div className="col-span-full py-12 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-3xl">
-                <BookOpen className="w-12 h-12 text-gray-300 mb-4" />
-                <p className="text-gray-500 dark:text-gray-400 font-medium">Fanlar mavjud emas</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Documents Section */}
-        <section className="bg-white dark:bg-[#1f2937] rounded-2xl border border-gray-200 dark:border-gray-700 p-8 shadow-sm">
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-1.5 h-6 bg-[#0d89b1] rounded-full" />
-              <h2 className="text-xl font-bold text-[#1f2937] dark:text-gray-100">Kerakli hujjatlar</h2>
+              ))}
+              {subjects.length === 0 && (
+                <div className="text-center py-10 text-gray-400 font-medium border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-lg text-sm">
+                  Fanlar hali qo'shilmagan
+                </div>
+              )}
             </div>
-            <button
-              onClick={handleAddDoc}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 dark:bg-gray-800 text-[#1f2937] dark:text-gray-100 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all active:scale-[0.98]"
-            >
-              <Plus className="w-5 h-5" />
-              Yangi hujjat
-            </button>
-          </div>
+          </section>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {documents.length > 0 ? (
-              documents.map((doc) => (
-                <div 
-                  key={doc.id}
-                  className="group bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 hover:border-[#0d89b1] transition-all hover:shadow-md relative overflow-hidden"
-                >
-                  <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                    <button 
-                      onClick={() => handleEditDoc(doc)}
-                      className="p-1.5 bg-white dark:bg-gray-700 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors shadow-sm"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteDoc(doc.id)}
-                      className="p-1.5 bg-white dark:bg-gray-700 text-red-600 rounded-lg hover:bg-red-50 transition-colors shadow-sm"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+        {/* Right: Documents List */}
+        <div className="lg:col-span-5">
+          <section className="bg-white dark:bg-[#1f2937] p-5 md:p-8 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 sticky top-6">
+            <div className="flex items-center justify-between mb-6 md:mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 md:w-6 md:h-6 text-[#0d89b1]" />
+                Kerakli hujjatlar
+              </h2>
+              <button
+                onClick={handleAddDoc}
+                className="flex items-center gap-2 px-3 md:px-4 py-2 bg-[#0d89b1]/10 text-[#0d89b1] font-bold rounded-lg hover:bg-[#0d89b1]/20 transition-all text-xs md:text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Hujjat qo'shish
+              </button>
+            </div>
 
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="p-3 bg-white dark:bg-gray-700 rounded-xl shadow-sm text-[#0d89b1]">
-                      <FileText className="w-6 h-6" />
+            <div className="space-y-4">
+              {documents.map((doc) => (
+                <div key={doc.id} className="p-4 md:p-5 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700 hover:border-[#0d89b1]/30 transition-all group">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      {doc.is_required ? (
+                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 text-gray-400" />
+                      )}
+                      <h4 className="font-bold text-gray-900 dark:text-white leading-tight text-sm md:text-base">{doc.document_name_uz}</h4>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-[#1f2937] dark:text-gray-100 line-clamp-1">{doc.document_name_uz}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        {doc.is_required && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded">
-                            Majburiy
-                          </span>
-                        )}
-                        <span className="text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-500 px-2 py-0.5 rounded">
-                          Sira: {doc.sort_order}
-                        </span>
-                      </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => handleEditDoc(doc)} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDeleteDoc(doc.id)} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-
-                  <p className="text-sm text-[#64748b] dark:text-gray-400 line-clamp-2 mb-4 h-10">
-                    {doc.note_uz || "Izoh yo'q"}
-                  </p>
-
-                  {doc.document_file && (
-                    <a 
-                      href={getImageUrl(doc.document_file)} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs font-bold text-[#0d89b1] hover:bg-gray-50 transition-colors"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      Faylni ko'rish
-                    </a>
+                  {doc.note_uz && (
+                    <p className="text-xs md:text-sm text-gray-500 line-clamp-2 pl-8">{doc.note_uz}</p>
                   )}
                 </div>
-              ))
-            ) : (
-              <div className="col-span-full py-12 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-3xl">
-                <FileText className="w-12 h-12 text-gray-300 mb-4" />
-                <p className="text-gray-500 dark:text-gray-400 font-medium">Hujjatlar mavjud emas</p>
-              </div>
-            )}
-          </div>
-        </section>
+              ))}
+              {documents.length === 0 && (
+                <div className="text-center py-10 text-gray-400 font-medium border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-lg text-sm">
+                  Hujjatlar hali qo'shilmagan
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
 
       {/* Document Modal */}
       {isDocModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsDocModalOpen(false)} />
-          <div className="relative bg-white dark:bg-[#1f2937] w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
-            <div className="sticky top-0 bg-white/80 dark:bg-[#1f2937]/80 backdrop-blur-md px-8 py-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center z-10">
-              <h3 className="text-xl font-bold text-[#1f2937] dark:text-gray-100">
+          <div className="relative bg-white dark:bg-[#1f2937] w-full max-w-2xl rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200 overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="sticky top-0 bg-white/80 dark:bg-[#1f2937]/80 backdrop-blur-md px-6 md:px-8 py-5 md:py-6 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 z-10">
+              <h3 className="text-lg md:text-xl font-bold text-[#1f2937] dark:text-gray-100">
                 {editingDoc ? "Hujjatni tahrirlash" : "Yangi hujjat qo'shish"}
               </h3>
-              <div className="flex items-center gap-2">
-                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mr-4">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-between">
+                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
                   {languages.map((lang) => (
                     <button
                       key={lang.id}
                       type="button"
                       onClick={() => setActiveTab(lang.id)}
-                      className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      className={`px-3 md:px-4 py-1 md:py-1.5 text-xs font-bold rounded-md transition-all ${
                         activeTab === lang.id 
                           ? "bg-white dark:bg-gray-700 text-[#0d89b1] shadow-sm" 
                           : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
@@ -813,18 +706,18 @@ export default function Qabul() {
                 </div>
                 <button 
                   onClick={() => setIsDocModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
               </div>
             </div>
 
-            <form onSubmit={handleDocSubmit} className="p-8 space-y-8">
-              <div className="grid grid-cols-1 gap-8">
+            <form onSubmit={handleDocSubmit} className="p-6 md:p-8 space-y-6 md:space-y-8 overflow-y-auto">
+              <div className="grid grid-cols-1 gap-6 md:gap-8">
                 {/* Single language section that switches */}
                 <div className="space-y-6">
-                  <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+                  <div className="p-5 md:p-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700">
                     <h4 className="text-xs font-bold text-[#0d89b1] uppercase tracking-widest flex items-center gap-2 mb-6">
                       <span className="w-4 h-[1px] bg-[#0d89b1]" />
                       {languages.find(l => l.id === activeTab)?.label} tilidagi ma'lumotlar
@@ -839,15 +732,13 @@ export default function Qabul() {
                           type="text"
                           value={
                             activeTab === "uz" ? docFormData.document_name_uz :
-                            activeTab === "ru" ? docFormData.document_name_ru :
-                            activeTab === "en" ? docFormData.document_name_en :
-                            docFormData.document_name_uz_cyrl
+                            docFormData.document_name_ru
                           }
                           onChange={(e) => {
                             const field = `document_name_${activeTab}` as keyof typeof docFormData;
                             setDocFormData({ ...docFormData, [field]: e.target.value });
                           }}
-                          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all"
+                          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all text-sm"
                           required={activeTab === "uz"}
                         />
                       </div>
@@ -858,16 +749,14 @@ export default function Qabul() {
                         <textarea
                           value={
                             activeTab === "uz" ? docFormData.note_uz :
-                            activeTab === "ru" ? docFormData.note_ru :
-                            activeTab === "en" ? docFormData.note_en :
-                            docFormData.note_uz_cyrl
+                            docFormData.note_ru
                           }
                           onChange={(e) => {
                             const field = `note_${activeTab}` as keyof typeof docFormData;
                             setDocFormData({ ...docFormData, [field]: e.target.value });
                           }}
                           rows={1}
-                          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all resize-none"
+                          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all resize-none text-sm"
                         />
                       </div>
                     </div>
@@ -875,68 +764,34 @@ export default function Qabul() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-4 border-t border-gray-100 dark:border-gray-700">
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Tartib raqami</label>
-                      <input
-                        type="number"
-                        value={docFormData.sort_order}
-                        onChange={(e) => setDocFormData({ ...docFormData, sort_order: Number(e.target.value) })}
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="flex flex-col justify-end">
-                      <label className="flex items-center gap-3 p-3.5 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-100 transition-all">
-                        <input
-                          type="checkbox"
-                          checked={docFormData.is_required}
-                          onChange={(e) => setDocFormData({ ...docFormData, is_required: e.target.checked })}
-                          className="w-5 h-5 rounded-md text-[#0d89b1] focus:ring-[#0d89b1]"
-                        />
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Majburiy hujjat</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Namuna fayli (PDF, DOCX, JPG...)</label>
-                    <div className="relative">
-                      <input
-                        type="file"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) setDocFormData({ ...docFormData, document_file: file });
-                        }}
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#0d89b1]/10 file:text-[#0d89b1] hover:file:bg-[#0d89b1]/20 cursor-pointer"
-                      />
-                    </div>
-                    {typeof docFormData.document_file === "string" && (
-                      <p className="mt-2 text-xs text-[#0d89b1] font-medium flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Joriy fayl yuklangan
-                      </p>
-                    )}
-                  </div>
+              <div className="grid grid-cols-1 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="is_required"
+                    checked={docFormData.is_required}
+                    onChange={(e) => setDocFormData({ ...docFormData, is_required: e.target.checked })}
+                    className="w-5 h-5 rounded text-[#0d89b1] focus:ring-[#0d89b1]"
+                  />
+                  <label htmlFor="is_required" className="text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer">Majburiy hujjat</label>
                 </div>
+              </div>
 
-                <div className="flex items-end justify-end gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsDocModalOpen(false)}
-                    className="px-8 py-3.5 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                  >
-                    Bekor qilish
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isDocSubmitting}
-                    className="flex items-center gap-2 px-10 py-3.5 bg-[#0d89b1] text-white font-bold rounded-2xl hover:bg-[#0a6d8f] transition-all shadow-lg shadow-[#0d89b1]/20 active:scale-[0.98] disabled:opacity-50"
-                  >
-                    {isDocSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                    Saqlash
-                  </button>
-                </div>
+              <div className="flex justify-end gap-3 md:gap-4">
+                <button
+                  type="button"
+                  onClick={() => setIsDocModalOpen(false)}
+                  className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDocSubmitting}
+                  className="px-8 md:px-10 py-2.5 md:py-3 bg-[#0d89b1] text-white font-bold rounded-lg hover:bg-[#0a6d8f] transition-all shadow-lg shadow-[#0d89b1]/20 disabled:opacity-50 text-sm"
+                >
+                  {isDocSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Hujjatni saqlash"}
+                </button>
               </div>
             </form>
           </div>
@@ -947,19 +802,19 @@ export default function Qabul() {
       {isSubModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsSubModalOpen(false)} />
-          <div className="relative bg-white dark:bg-[#1f2937] w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
-            <div className="sticky top-0 bg-white/80 dark:bg-[#1f2937]/80 backdrop-blur-md px-8 py-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center z-10">
-              <h3 className="text-xl font-bold text-[#1f2937] dark:text-gray-100">
+          <div className="relative bg-white dark:bg-[#1f2937] w-full max-w-2xl rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200 overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="sticky top-0 bg-white/80 dark:bg-[#1f2937]/80 backdrop-blur-md px-6 md:px-8 py-5 md:py-6 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 z-10">
+              <h3 className="text-lg md:text-xl font-bold text-[#1f2937] dark:text-gray-100">
                 {editingSub ? "Fanni tahrirlash" : "Yangi fan qo'shish"}
               </h3>
-              <div className="flex items-center gap-2">
-                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mr-4">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-between">
+                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
                   {languages.map((lang) => (
                     <button
                       key={lang.id}
                       type="button"
                       onClick={() => setActiveTab(lang.id)}
-                      className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      className={`px-3 md:px-4 py-1 md:py-1.5 text-xs font-bold rounded-md transition-all ${
                         activeTab === lang.id 
                           ? "bg-white dark:bg-gray-700 text-[#0d89b1] shadow-sm" 
                           : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
@@ -971,18 +826,17 @@ export default function Qabul() {
                 </div>
                 <button 
                   onClick={() => setIsSubModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
               </div>
             </div>
 
-            <form onSubmit={handleSubSubmit} className="p-8 space-y-8">
-              <div className="grid grid-cols-1 gap-8">
-                {/* Single language section that switches */}
+            <form onSubmit={handleSubSubmit} className="p-6 md:p-8 space-y-6 md:space-y-8 overflow-y-auto">
+              <div className="grid grid-cols-1 gap-6 md:gap-8">
                 <div className="space-y-6">
-                  <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+                  <div className="p-5 md:p-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700">
                     <h4 className="text-xs font-bold text-[#0d89b1] uppercase tracking-widest flex items-center gap-2 mb-6">
                       <span className="w-4 h-[1px] bg-[#0d89b1]" />
                       {languages.find(l => l.id === activeTab)?.label} tilidagi ma'lumotlar
@@ -997,15 +851,13 @@ export default function Qabul() {
                           type="text"
                           value={
                             activeTab === "uz" ? subFormData.subject_name_uz :
-                            activeTab === "ru" ? subFormData.subject_name_ru :
-                            activeTab === "en" ? subFormData.subject_name_en :
-                            subFormData.subject_name_uz_cyrl
+                            subFormData.subject_name_ru
                           }
                           onChange={(e) => {
                             const field = `subject_name_${activeTab}` as keyof typeof subFormData;
                             setSubFormData({ ...subFormData, [field]: e.target.value });
                           }}
-                          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all"
+                          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all text-sm"
                           required={activeTab === "uz"}
                         />
                       </div>
@@ -1016,16 +868,14 @@ export default function Qabul() {
                         <textarea
                           value={
                             activeTab === "uz" ? subFormData.description_uz :
-                            activeTab === "ru" ? subFormData.description_ru :
-                            activeTab === "en" ? subFormData.description_en :
-                            subFormData.description_uz_cyrl
+                            subFormData.description_ru
                           }
                           onChange={(e) => {
                             const field = `description_${activeTab}` as keyof typeof subFormData;
                             setSubFormData({ ...subFormData, [field]: e.target.value });
                           }}
                           rows={1}
-                          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all resize-none"
+                          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all resize-none text-sm"
                         />
                       </div>
                     </div>
@@ -1033,60 +883,50 @@ export default function Qabul() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-4 border-t border-gray-100 dark:border-gray-700">
-                <div className="space-y-6">
-                  <div className="grid grid-cols-3 gap-6">
-                    <div className="col-span-1">
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Turi</label>
-                      <select
-                        value={subFormData.subject_type}
-                        onChange={(e) => setSubFormData({ ...subFormData, subject_type: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all"
-                      >
-                        <option value="test">Test</option>
-                        <option value="creative">Ijodiy</option>
-                        <option value="interview">Suhbat</option>
-                      </select>
-                    </div>
-                    <div className="col-span-1">
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Maks ball *</label>
-                      <input
-                        type="number"
-                        value={subFormData.max_score}
-                        onChange={(e) => setSubFormData({ ...subFormData, max_score: Number(e.target.value) })}
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all"
-                        required
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Tartib</label>
-                      <input
-                        type="number"
-                        value={subFormData.sort_order}
-                        onChange={(e) => setSubFormData({ ...subFormData, sort_order: Number(e.target.value) })}
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
+              <div className="grid grid-cols-2 gap-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <div>
+                  <label className="block text-[10px] md:text-xs font-bold text-gray-500 uppercase mb-1.5">Turi</label>
+                  <select
+                    value={subFormData.subject_type}
+                    onChange={(e) => setSubFormData({ ...subFormData, subject_type: e.target.value as any })}
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-sm"
+                  >
+                    <option value="test">Test</option>
+                    <option value="creative">Ijodiy</option>
+                    <option value="interview">Suhbat</option>
+                  </select>
                 </div>
+                <div>
+                  <label className="block text-[10px] md:text-xs font-bold text-gray-500 uppercase mb-1.5">Maks. ball</label>
+                  <input
+                    type="text"
+                    value={subFormData.max_score}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d+$/.test(val)) {
+                        setSubFormData({ ...subFormData, max_score: val === "" ? 0 : Number(val) });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-sm"
+                  />
+                </div>
+              </div>
 
-                <div className="flex items-end justify-end gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsSubModalOpen(false)}
-                    className="px-8 py-3.5 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                  >
-                    Bekor qilish
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubSubmitting}
-                    className="flex items-center gap-2 px-10 py-3.5 bg-[#0d89b1] text-white font-bold rounded-2xl hover:bg-[#0a6d8f] transition-all shadow-lg shadow-[#0d89b1]/20 active:scale-[0.98] disabled:opacity-50"
-                  >
-                    {isSubSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                    Saqlash
-                  </button>
-                </div>
+              <div className="flex justify-end gap-3 md:gap-4">
+                <button
+                  type="button"
+                  onClick={() => setIsSubModalOpen(false)}
+                  className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubSubmitting}
+                  className="px-8 md:px-10 py-2.5 md:py-3 bg-[#0d89b1] text-white font-bold rounded-lg hover:bg-[#0a6d8f] transition-all shadow-lg shadow-[#0d89b1]/20 disabled:opacity-50 text-sm"
+                >
+                  {isSubSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Fanni saqlash"}
+                </button>
               </div>
             </form>
           </div>

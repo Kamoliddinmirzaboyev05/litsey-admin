@@ -11,17 +11,27 @@ interface Settings {
   email: string;
   website: string;
   logo: string;
-  telegram: string;
-  instagram: string;
-  facebook: string;
-  youtube: string;
+  telegram: string | null;
+  instagram: string | null;
+  facebook: string | null;
+  youtube: string | null;
   translations: {
     uz: {
       short_name: string;
       full_name: string;
       address: string;
     };
-    ru: {
+    ru?: {
+      short_name: string;
+      full_name: string;
+      address: string;
+    };
+    en?: {
+      short_name: string;
+      full_name: string;
+      address: string;
+    };
+    uz_cyrl?: {
       short_name: string;
       full_name: string;
       address: string;
@@ -34,13 +44,13 @@ export default function Sozlamalar() {
   const [isSaving, setIsSaving] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
 
+  const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
+
   const [formData, setFormData] = useState({
-    short_name_uz: "",
-    short_name_ru: "",
-    full_name_uz: "",
-    full_name_ru: "",
-    address_uz: "",
-    address_ru: "",
+    translations: {
+      uz: { short_name: "", full_name: "", address: "" },
+      ru: { short_name: "", full_name: "", address: "" },
+    },
     established_year: 0,
     phone: "",
     email: "",
@@ -51,6 +61,13 @@ export default function Sozlamalar() {
     facebook: "",
     youtube: "",
   });
+
+  const languages = [
+    { id: "uz", label: "O'zbekcha" },
+    { id: "ru", label: "Русский" },
+    // { id: "en", label: "English" },
+    // { id: "uz_cyrl", label: "Криллча" },
+  ] as const;
 
   useEffect(() => {
     fetchSettings();
@@ -73,12 +90,10 @@ export default function Sozlamalar() {
         if (settingsData && settingsData.id) {
           setSettings(settingsData);
           setFormData({
-            short_name_uz: settingsData.translations?.uz?.short_name || "",
-            short_name_ru: settingsData.translations?.ru?.short_name || "",
-            full_name_uz: settingsData.translations?.uz?.full_name || "",
-            full_name_ru: settingsData.translations?.ru?.full_name || "",
-            address_uz: settingsData.translations?.uz?.address || "",
-            address_ru: settingsData.translations?.ru?.address || "",
+            translations: {
+              uz: settingsData.translations?.uz || { short_name: "", full_name: "", address: "" },
+              ru: settingsData.translations?.ru || { short_name: "", full_name: "", address: "" },
+            },
             established_year: settingsData.established_year || 0,
             phone: settingsData.phone || "",
             email: settingsData.email || "",
@@ -105,15 +120,12 @@ export default function Sozlamalar() {
     const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
 
-    // Required fields (uzbek is often required by backend)
-    data.append("short_name_uz", formData.short_name_uz);
-    data.append("full_name_uz", formData.full_name_uz);
-
-    // Optional translation fields
-    if (formData.short_name_ru) data.append("short_name_ru", formData.short_name_ru);
-    if (formData.full_name_ru) data.append("full_name_ru", formData.full_name_ru);
-    if (formData.address_uz) data.append("address_uz", formData.address_uz);
-    if (formData.address_ru) data.append("address_ru", formData.address_ru);
+    // Nested translations handled as JSON string if backend supports it, 
+    // or flat fields if it doesn't. 
+    // Given the user provided JSON, I'll send it as a nested structure in JSON 
+    // but since we have a file, we use FormData.
+    // I will try sending it as a JSON string for the translations field.
+    data.append("translations", JSON.stringify(formData.translations));
 
     // Other fields
     if (formData.established_year) data.append("established_year", String(formData.established_year));
@@ -169,15 +181,15 @@ export default function Sozlamalar() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#1f2937] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#1f2937] p-5 md:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white flex items-center gap-3">
-            <Building className="w-8 h-8 text-[#0d89b1]" />
+          <h1 className="text-xl md:text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-3">
+            <Building className="w-6 h-6 md:w-8 md:h-8 text-[#0d89b1]" />
             Sozlamalar
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Litseyning umumiy ma'lumotlari va ijtimoiy tarmoqlarini boshqaring
           </p>
         </div>
@@ -185,26 +197,26 @@ export default function Sozlamalar() {
           type="submit"
           form="settings-form"
           disabled={isSaving}
-          className="flex items-center justify-center gap-2 px-8 py-3.5 bg-[#0d89b1] text-white rounded-xl hover:bg-[#0a6d8f] transition-all shadow-lg hover:shadow-[#0d89b1]/20 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none font-semibold text-lg"
+          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#0d89b1] text-white rounded-lg hover:bg-[#0a6d8f] transition-all shadow-lg hover:shadow-[#0d89b1]/20 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none font-semibold text-sm md:text-base w-full sm:w-auto"
         >
           {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-          {isSaving ? "Saqlanmoqda..." : "O'zgarishlarni saqlash"}
+          {isSaving ? "Saqlanmoqda..." : "Saqlash"}
         </button>
       </div>
 
-      <form id="settings-form" onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-12">
+      <form id="settings-form" onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 pb-12">
         {/* Left Column: General & Logo */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-8 space-y-6 md:space-y-8">
           {/* Brand Identity */}
-          <section className="bg-white dark:bg-[#1f2937] p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 transition-all hover:shadow-md">
-            <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">
-              <Globe className="w-6 h-6 text-[#0d89b1]" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Brend ma'lumotlari</h2>
+          <section className="bg-white dark:bg-[#1f2937] p-5 md:p-8 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 transition-all hover:shadow-md">
+            <div className="flex items-center gap-3 mb-6 md:mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">
+              <Globe className="w-5 h-5 md:w-6 md:h-6 text-[#0d89b1]" />
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Brend ma'lumotlari</h2>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
               <div className="md:col-span-1 space-y-3">
-                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Litsey logotipini yuklash</label>
+                <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Litsey logotipi</label>
                 <ImageUpload
                   label="Logo"
                   value={formData.logo}
@@ -213,149 +225,165 @@ export default function Sozlamalar() {
                 />
               </div>
               <div className="md:col-span-2 space-y-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+                    {languages.map((lang) => (
+                      <button
+                        key={lang.id}
+                        type="button"
+                        onClick={() => setActiveTab(lang.id as "uz" | "ru")}
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+                          activeTab === lang.id 
+                            ? "bg-white dark:bg-gray-700 text-[#0d89b1] shadow-sm" 
+                            : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                        }`}
+                      >
+                        {lang.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                      Qisqa nomi (UZ) <span className="text-red-500">*</span>
+                    <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                      Qisqa nomi ({activeTab.toUpperCase()}) {activeTab === "uz" && <span className="text-red-500">*</span>}
                     </label>
                     <input
                       type="text"
-                      value={formData.short_name_uz}
-                      onChange={(e) => setFormData({ ...formData, short_name_uz: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
-                      placeholder="Masalan: AT-Termiz"
-                      required
+                      value={formData.translations[activeTab]?.short_name || ""}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          translations: {
+                            ...formData.translations,
+                            [activeTab]: {
+                              ...formData.translations[activeTab],
+                              short_name: e.target.value
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white text-sm"
+                      placeholder={`Qisqa nomi...`}
+                      required={activeTab === "uz"}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                       <Calendar className="w-4 h-4" /> Tashkil etilgan yil
                     </label>
                     <input
-                      type="number"
-                      value={formData.established_year}
-                      onChange={(e) => setFormData({ ...formData, established_year: Number(e.target.value) })}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
-                      placeholder="2024"
+                      type="text"
+                      value={formData.established_year || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "" || /^\d+$/.test(val)) {
+                          setFormData({ ...formData, established_year: val === "" ? 0 : Number(val) });
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white text-sm"
+                      placeholder="2000"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    To'liq nomi (UZ) <span className="text-red-500">*</span>
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    To'liq nomi ({activeTab.toUpperCase()}) {activeTab === "uz" && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     type="text"
-                    value={formData.full_name_uz}
-                    onChange={(e) => setFormData({ ...formData, full_name_uz: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white font-medium"
-                    placeholder="Litseyning to'liq nomi..."
-                    required
+                    value={formData.translations[activeTab]?.full_name || ""}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        translations: {
+                          ...formData.translations,
+                          [activeTab]: {
+                            ...formData.translations[activeTab],
+                            full_name: e.target.value
+                          }
+                        }
+                      });
+                    }}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white font-medium text-sm"
+                    placeholder={`Litseyning to'liq nomi...`}
+                    required={activeTab === "uz"}
                   />
-                </div>
-              </div>
-            </div>
-
-            {/* Other Languages */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10 p-6 bg-gray-50/50 dark:bg-gray-800/20 rounded-2xl border border-gray-100 dark:border-gray-800">
-              <div className="space-y-6">
-                <h3 className="text-sm font-bold text-[#0d89b1] uppercase tracking-widest flex items-center gap-2">
-                  <span className="w-2 h-2 bg-[#0d89b1] rounded-full"></span> Rus tili
-                </h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">Qisqa nomi (RU)</label>
-                    <input
-                      type="text"
-                      value={formData.short_name_ru}
-                      onChange={(e) => setFormData({ ...formData, short_name_ru: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">To'liq nomi (RU)</label>
-                    <input
-                      type="text"
-                      value={formData.full_name_ru}
-                      onChange={(e) => setFormData({ ...formData, full_name_ru: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white"
-                    />
-                  </div>
                 </div>
               </div>
             </div>
           </section>
 
           {/* Contact Information */}
-          <section className="bg-white dark:bg-[#1f2937] p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 transition-all hover:shadow-md">
-            <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">
-              <Phone className="w-6 h-6 text-[#0d89b1]" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Aloqa ma'lumotlari</h2>
+          <section className="bg-white dark:bg-[#1f2937] p-5 md:p-8 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 transition-all hover:shadow-md">
+            <div className="flex items-center gap-3 mb-6 md:mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">
+              <Phone className="w-5 h-5 md:w-6 md:h-6 text-[#0d89b1]" />
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Aloqa ma'lumotlari</h2>
             </div>
             
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6 md:space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    <MapPin className="w-4 h-4" /> Manzil (UZ)
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <MapPin className="w-4 h-4" /> Manzil ({activeTab.toUpperCase()})
                   </label>
                   <input
                     type="text"
-                    value={formData.address_uz}
-                    onChange={(e) => setFormData({ ...formData, address_uz: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
-                    placeholder="Toshkent sh., ..."
+                    value={formData.translations[activeTab]?.address || ""}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        translations: {
+                          ...formData.translations,
+                          [activeTab]: {
+                            ...formData.translations[activeTab],
+                            address: e.target.value
+                          }
+                        }
+                      });
+                    }}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white text-sm"
+                    placeholder={`Manzil...`}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    <MapPin className="w-4 h-4" /> Manzil (RU)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.address_ru}
-                    onChange={(e) => setFormData({ ...formData, address_ru: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
-                    placeholder="г. Ташкент, ..."
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-gray-50 dark:border-gray-800">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    <Phone className="w-4 h-4" /> Telefon raqami
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
-                    placeholder="+998 90 123 45 67"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    <Mail className="w-4 h-4" /> Email manzili
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
-                    placeholder="info@litsey.uz"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                     <Globe className="w-4 h-4" /> Veb-sayt
                   </label>
                   <input
                     type="text"
-                    value={formData.website}
+                    value={formData.website || ""}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white text-sm"
                     placeholder="www.litsey.uz"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pt-4 border-t border-gray-50 dark:border-gray-800">
+                <div className="space-y-2">
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <Phone className="w-4 h-4" /> Telefon raqami
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone || ""}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white text-sm"
+                    placeholder="+998 90 123 45 67"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <Mail className="w-4 h-4" /> Email manzili
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email || ""}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#0d89b1]/20 focus:border-[#0d89b1] outline-none transition-all dark:text-white text-sm"
+                    placeholder="info@litsey.uz"
                   />
                 </div>
               </div>
@@ -365,21 +393,21 @@ export default function Sozlamalar() {
 
         {/* Right Column: Social Networks */}
         <div className="lg:col-span-4">
-          <section className="bg-white dark:bg-[#1f2937] p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 transition-all hover:shadow-md sticky top-6">
-            <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">
-              <Share2 className="w-6 h-6 text-[#0d89b1]" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ijtimoiy tarmoqlar</h2>
+          <section className="bg-white dark:bg-[#1f2937] p-5 md:p-8 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 transition-all hover:shadow-md sticky top-6">
+            <div className="flex items-center gap-3 mb-6 md:mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">
+              <Share2 className="w-5 h-5 md:w-6 md:h-6 text-[#0d89b1]" />
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Ijtimoiy tarmoqlar</h2>
             </div>
             
-            <div className="space-y-6">
+            <div className="space-y-5 md:space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Telegram</label>
+                <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Telegram</label>
                 <div className="relative">
                   <input
                     type="text"
-                    value={formData.telegram}
+                    value={formData.telegram || ""}
                     onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
-                    className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                    className="w-full pl-4 pr-10 py-2.5 md:py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white text-sm"
                     placeholder="t.me/litsey"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -388,13 +416,13 @@ export default function Sozlamalar() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Instagram</label>
+                <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Instagram</label>
                 <div className="relative">
                   <input
                     type="text"
-                    value={formData.instagram}
+                    value={formData.instagram || ""}
                     onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
-                    className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                    className="w-full pl-4 pr-10 py-2.5 md:py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white text-sm"
                     placeholder="instagram.com/litsey"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -403,13 +431,13 @@ export default function Sozlamalar() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Facebook</label>
+                <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">Facebook</label>
                 <div className="relative">
                   <input
                     type="text"
-                    value={formData.facebook}
+                    value={formData.facebook || ""}
                     onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
-                    className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                    className="w-full pl-4 pr-10 py-2.5 md:py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white text-sm"
                     placeholder="facebook.com/litsey"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -418,13 +446,13 @@ export default function Sozlamalar() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">YouTube</label>
+                <label className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">YouTube</label>
                 <div className="relative">
                   <input
                     type="text"
-                    value={formData.youtube}
+                    value={formData.youtube || ""}
                     onChange={(e) => setFormData({ ...formData, youtube: e.target.value })}
-                    className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:border-[#0d89b1] outline-none transition-all dark:text-white"
+                    className="w-full pl-4 pr-10 py-2.5 md:py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:border-[#0d89b1] outline-none transition-all dark:text-white text-sm"
                     placeholder="youtube.com/@litsey"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -434,9 +462,9 @@ export default function Sozlamalar() {
               </div>
             </div>
 
-            <div className="mt-10 p-4 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/20">
-              <p className="text-xs text-amber-700 dark:text-amber-500 leading-relaxed font-medium">
-                Ijtimoiy tarmoqlar saytning footer (pastki) qismida va aloqa sahifasida ko'rinadi. URL manzillarni to'liq ko'rinishda kiritishingiz tavsiya etiladi.
+            <div className="mt-8 md:mt-10 p-4 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-900/20">
+              <p className="text-[10px] md:text-xs text-amber-700 dark:text-amber-500 leading-relaxed font-medium">
+                Ijtimoiy tarmoqlar saytning footer qismida va aloqa sahifasida ko'rinadi. URL manzillarni to'liq ko'rinishda kiritishingiz tavsiya etiladi.
               </p>
             </div>
           </section>
