@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Save, Loader2, Globe, Phone, Mail, MapPin, Share2, Building, Calendar } from "lucide-react";
 import { ImageUpload } from "../components/ImageUpload";
@@ -120,12 +121,13 @@ export default function Sozlamalar() {
     const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
 
-    // Nested translations handled as JSON string if backend supports it, 
-    // or flat fields if it doesn't. 
-    // Given the user provided JSON, I'll send it as a nested structure in JSON 
-    // but since we have a file, we use FormData.
-    // I will try sending it as a JSON string for the translations field.
-    data.append("translations", JSON.stringify(formData.translations));
+    // Translations fields
+    if (formData.translations.uz.short_name) data.append("short_name_uz", formData.translations.uz.short_name);
+    if (formData.translations.uz.full_name) data.append("full_name_uz", formData.translations.uz.full_name);
+    if (formData.translations.uz.address) data.append("address_uz", formData.translations.uz.address);
+    if (formData.translations.ru.short_name) data.append("short_name_ru", formData.translations.ru.short_name);
+    if (formData.translations.ru.full_name) data.append("full_name_ru", formData.translations.ru.full_name);
+    if (formData.translations.ru.address) data.append("address_ru", formData.translations.ru.address);
 
     // Other fields
     if (formData.established_year) data.append("established_year", String(formData.established_year));
@@ -181,7 +183,12 @@ export default function Sozlamalar() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 overflow-x-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 overflow-x-hidden"
+    >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#1f2937] p-5 md:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
         <div>
@@ -470,6 +477,6 @@ export default function Sozlamalar() {
           </section>
         </div>
       </form>
-    </div>
+    </motion.div>
   );
 }

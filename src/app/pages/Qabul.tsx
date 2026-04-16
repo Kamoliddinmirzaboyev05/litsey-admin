@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { 
   Plus, Edit, Trash2, X, Loader2, FileText, CheckCircle2, 
@@ -19,18 +20,25 @@ interface AdmissionData {
   results_date: string;
   online_apply_url: string;
   is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface TranslationField {
+  document_name?: string;
+  note?: string;
+  subject_name?: string;
+  description?: string;
 }
 
 interface AdmissionDocument {
   id: number;
-  document_name_uz: string;
-  document_name_ru?: string;
-  document_name_en?: string;
-  document_name_uz_cyrl?: string;
-  note_uz: string;
-  note_ru?: string;
-  note_en?: string;
-  note_uz_cyrl?: string;
+  translations: {
+    uz: TranslationField;
+    ru: TranslationField;
+    en?: TranslationField;
+    uz_cyrl?: TranslationField;
+  };
   document_file: string;
   is_required: boolean;
   sort_order: number;
@@ -39,16 +47,21 @@ interface AdmissionDocument {
 interface AdmissionSubject {
   id: number;
   subject_type: "test" | "creative" | "interview";
+  subject_type_display?: string;
   max_score: number;
   sort_order: number;
-  subject_name_uz: string;
-  subject_name_ru?: string;
-  subject_name_en?: string;
-  subject_name_uz_cyrl?: string;
-  description_uz: string;
-  description_ru?: string;
-  description_en?: string;
-  description_uz_cyrl?: string;
+  translations: {
+    uz: TranslationField;
+    ru: TranslationField;
+    en?: TranslationField;
+    uz_cyrl?: TranslationField;
+  };
+}
+
+interface AdmissionResponse {
+  admission_info: AdmissionData;
+  subjects: AdmissionSubject[];
+  documents: AdmissionDocument[];
 }
 
 export default function Qabul() {
@@ -117,50 +130,33 @@ export default function Qabul() {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("auth_token");
-      const [admRes, docRes, subRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/admission/current/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${API_BASE_URL}/admission/documents/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${API_BASE_URL}/admission/subjects/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
+      const response = await fetch(`${API_BASE_URL}/admission/current/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      if (admRes.status === 404) {
-        // No current admission record yet, which is fine
-        setCurrentAdmission(null);
-      } else if (admRes.ok) {
-        const data = await admRes.json();
-        const latest = Array.isArray(data) ? data[0] : data;
-        if (latest) {
-          setCurrentAdmission(latest.id ? latest : null);
+      if (response.ok) {
+        const data: AdmissionResponse = await response.json();
+        const info = data.admission_info;
+        
+        if (info) {
+          setCurrentAdmission(info);
           setFormData({
-            academic_year: latest.academic_year || "",
-            total_quota: latest.total_quota ?? 0,
-            grant_quota: latest.grant_quota ?? 0,
-            contract_quota: latest.contract_quota ?? 0,
-            contract_price: latest.contract_price || "",
-            application_start: latest.application_start?.split("T")[0] || "",
-            application_end: latest.application_end?.split("T")[0] || "",
-            exam_date: latest.exam_date?.split("T")[0] || "",
-            results_date: latest.results_date?.split("T")[0] || "",
-            online_apply_url: latest.online_apply_url || "",
-            is_active: latest.is_active ?? true,
+            academic_year: info.academic_year || "",
+            total_quota: info.total_quota ?? 0,
+            grant_quota: info.grant_quota ?? 0,
+            contract_quota: info.contract_quota ?? 0,
+            contract_price: info.contract_price || "",
+            application_start: info.application_start?.split("T")[0] || "",
+            application_end: info.application_end?.split("T")[0] || "",
+            exam_date: info.exam_date?.split("T")[0] || "",
+            results_date: info.results_date?.split("T")[0] || "",
+            online_apply_url: info.online_apply_url || "",
+            is_active: info.is_active ?? true,
           });
         }
-      }
 
-      if (docRes.ok) {
-        const data = await docRes.json();
-        setDocuments(Array.isArray(data) ? data : data.results || []);
-      }
-
-      if (subRes.ok) {
-        const data = await subRes.json();
-        setSubjects(Array.isArray(data) ? data : data.results || []);
+        setDocuments(data.documents || []);
+        setSubjects(data.subjects || []);
       }
     } catch (error) {
       toast.error("Ma'lumotlarni yuklashda xatolik");
@@ -173,7 +169,7 @@ export default function Qabul() {
     e.preventDefault();
 
     // Basic validation
-    if (formData.total_quota !== formData.grant_quota + formData.contract_quota) {
+    if (Number(formData.total_quota) !== Number(formData.grant_quota) + Number(formData.contract_quota)) {
       toast.error("Jami kvota grant va kontrakt kvotalari yig'indisiga teng bo'lishi kerak");
       return;
     }
@@ -182,17 +178,26 @@ export default function Qabul() {
 
     try {
       const token = sessionStorage.getItem("auth_token");
-      const method = currentAdmission ? "PUT" : "POST";
       
-      // Ensure numeric fields are actually numbers
+      const url = `${API_BASE_URL}/admission/current/`;
+      const method = "PUT";
+      
+      // Prepare payload with correct types
       const payload = {
-        ...formData,
-        total_quota: Number(formData.total_quota) || 0,
-        grant_quota: Number(formData.grant_quota) || 0,
-        contract_quota: Number(formData.contract_quota) || 0,
+        academic_year: formData.academic_year,
+        total_quota: parseInt(String(formData.total_quota)) || 0,
+        grant_quota: parseInt(String(formData.grant_quota)) || 0,
+        contract_quota: parseInt(String(formData.contract_quota)) || 0,
+        contract_price: formData.contract_price,
+        application_start: formData.application_start,
+        application_end: formData.application_end,
+        exam_date: formData.exam_date,
+        results_date: formData.results_date,
+        online_apply_url: formData.online_apply_url,
+        is_active: formData.is_active,
       };
 
-      const response = await fetch(`${API_BASE_URL}/admission/current/`, {
+      const response = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -202,11 +207,21 @@ export default function Qabul() {
       });
 
       if (response.ok) {
-        toast.success(currentAdmission ? "Qabul ma'lumotlari yangilandi" : "Qabul muvaffaqiyatli yaratildi");
+        toast.success("Qabul ma'lumotlari yangilandi");
         fetchData();
       } else {
         const errData = await response.json();
-        toast.error(errData.detail || "Xatolik yuz berdi");
+        
+        // Detailed error reporting for 400 Bad Request
+        if (typeof errData === "object" && !Array.isArray(errData)) {
+          const firstField = Object.keys(errData)[0];
+          const errorMsg = Array.isArray(errData[firstField]) 
+            ? `${firstField}: ${errData[firstField][0]}` 
+            : (errData.detail || "Ma'lumotlarni saqlashda xatolik");
+          toast.error(errorMsg);
+        } else {
+          toast.error("Xatolik yuz berdi");
+        }
       }
     } catch (error) {
       toast.error("Server bilan bog'lanishda xatolik");
@@ -235,10 +250,10 @@ export default function Qabul() {
     setDocFormData({
       is_required: doc.is_required,
       sort_order: doc.sort_order,
-      document_name_uz: doc.document_name_uz || "",
-      document_name_ru: doc.document_name_ru || "",
-      note_uz: doc.note_uz || "",
-      note_ru: doc.note_ru || "",
+      document_name_uz: doc.translations.uz.document_name || "",
+      document_name_ru: doc.translations.ru.document_name || "",
+      note_uz: doc.translations.uz.note || "",
+      note_ru: doc.translations.ru.note || "",
       document_file: getImageUrl(doc.document_file),
     });
     setIsDocModalOpen(true);
@@ -325,10 +340,10 @@ export default function Qabul() {
       subject_type: sub.subject_type,
       max_score: sub.max_score,
       sort_order: sub.sort_order,
-      subject_name_uz: sub.subject_name_uz || "",
-      subject_name_ru: sub.subject_name_ru || "",
-      description_uz: sub.description_uz || "",
-      description_ru: sub.description_ru || "",
+      subject_name_uz: sub.translations.uz.subject_name || "",
+      subject_name_ru: sub.translations.ru.subject_name || "",
+      description_uz: sub.translations.uz.description || "",
+      description_ru: sub.translations.ru.description || "",
     });
     setIsSubModalOpen(true);
   };
@@ -393,7 +408,12 @@ export default function Qabul() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto overflow-x-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto overflow-x-hidden"
+    >
       {/* Header */}
       <div className="flex flex-col sm:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#1f2937] p-5 md:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
         <div>
@@ -406,6 +426,11 @@ export default function Qabul() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {currentAdmission && (
+            <span className={`px-3 py-1 rounded-full text-xs font-bold ${currentAdmission.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+              {currentAdmission.is_active ? 'Faol qabul' : 'Nofaol qabul'}
+            </span>
+          )}
           <button
             onClick={fetchData}
             className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-[#0d89b1] transition-colors"
@@ -600,7 +625,7 @@ export default function Qabul() {
                       {sub.sort_order}
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900 dark:text-white text-sm md:text-base">{sub.subject_name_uz}</h4>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm md:text-base">{sub.translations.uz.subject_name}</h4>
                       <p className="text-[10px] md:text-xs text-gray-500 font-medium uppercase tracking-wider">
                         {sub.subject_type} • Max: {sub.max_score} ball
                       </p>
@@ -652,7 +677,7 @@ export default function Qabul() {
                       ) : (
                         <AlertCircle className="w-5 h-5 text-gray-400" />
                       )}
-                      <h4 className="font-bold text-gray-900 dark:text-white leading-tight text-sm md:text-base">{doc.document_name_uz}</h4>
+                      <h4 className="font-bold text-gray-900 dark:text-white leading-tight text-sm md:text-base">{doc.translations.uz.document_name}</h4>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => handleEditDoc(doc)} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md">
@@ -663,8 +688,8 @@ export default function Qabul() {
                       </button>
                     </div>
                   </div>
-                  {doc.note_uz && (
-                    <p className="text-xs md:text-sm text-gray-500 line-clamp-2 pl-8">{doc.note_uz}</p>
+                  {doc.translations.uz.note && (
+                    <p className="text-xs md:text-sm text-gray-500 line-clamp-2 pl-8">{doc.translations.uz.note}</p>
                   )}
                 </div>
               ))}
@@ -932,6 +957,6 @@ export default function Qabul() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

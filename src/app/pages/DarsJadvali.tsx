@@ -1,18 +1,22 @@
+import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X, Loader2, FileText, Download, Save, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL, getImageUrl } from "../../config/api";
 
+interface TranslationField {
+  document_name: string;
+  note: string;
+}
+
 interface TimetableDocument {
   id: number;
-  document_name_uz: string;
-  document_name_ru?: string;
-  document_name_en?: string;
-  document_name_uz_cyrl?: string;
-  note_uz: string;
-  note_ru?: string;
-  note_en?: string;
-  note_uz_cyrl?: string;
+  translations: {
+    uz: TranslationField;
+    ru?: TranslationField;
+    en?: TranslationField;
+    uz_cyrl?: TranslationField;
+  };
   document_file: string;
   is_required: boolean;
   sort_order: number;
@@ -27,10 +31,10 @@ export default function DarsJadvali() {
   const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
 
   const [formData, setFormData] = useState({
-    document_name_uz: "",
-    document_name_ru: "",
-    note_uz: "",
-    note_ru: "",
+    translations: {
+      uz: { document_name: "", note: "" },
+      ru: { document_name: "", note: "" },
+    },
     document_file: null as File | string | null,
     sort_order: 0,
   });
@@ -69,10 +73,10 @@ export default function DarsJadvali() {
   const handleAdd = () => {
     setEditingItem(null);
     setFormData({
-      document_name_uz: "",
-      document_name_ru: "",
-      note_uz: "",
-      note_ru: "",
+      translations: {
+        uz: { document_name: "", note: "" },
+        ru: { document_name: "", note: "" },
+      },
       document_file: null,
       sort_order: timetables.length,
     });
@@ -82,10 +86,10 @@ export default function DarsJadvali() {
   const handleEdit = (item: TimetableDocument) => {
     setEditingItem(item);
     setFormData({
-      document_name_uz: item.document_name_uz || "",
-      document_name_ru: item.document_name_ru || "",
-      note_uz: item.note_uz || "",
-      note_ru: item.note_ru || "",
+      translations: {
+        uz: item.translations.uz || { document_name: "", note: "" },
+        ru: item.translations.ru || { document_name: "", note: "" },
+      },
       document_file: item.document_file ? getImageUrl(item.document_file) : null,
       sort_order: item.sort_order,
     });
@@ -115,18 +119,23 @@ export default function DarsJadvali() {
 
     const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
-    data.append("document_name_uz", formData.document_name_uz);
-    data.append("document_name_ru", formData.document_name_ru);
-    data.append("note_uz", formData.note_uz);
-    data.append("note_ru", formData.note_ru);
     data.append("sort_order", String(formData.sort_order));
     data.append("is_required", "false"); // Default for timetable
+
+    // Translations fields
+    if (formData.translations.uz.document_name) data.append("document_name_uz", formData.translations.uz.document_name);
+    if (formData.translations.uz.note) data.append("note_uz", formData.translations.uz.note);
+    if (formData.translations.ru.document_name) data.append("document_name_ru", formData.translations.ru.document_name);
+    if (formData.translations.ru.note) data.append("note_ru", formData.translations.ru.note);
 
     if (formData.document_file instanceof File) {
       data.append("document_file", formData.document_file);
     }
 
     try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 15000); // 15 soniya timeout
+
       const url = editingItem 
         ? `${API_BASE_URL}/admission/documents/${editingItem.id}/` 
         : `${API_BASE_URL}/admission/documents/`;
@@ -136,17 +145,25 @@ export default function DarsJadvali() {
         method,
         headers: { Authorization: `Bearer ${token}` },
         body: data,
+        signal: controller.signal,
       });
+      clearTimeout(id);
 
       if (response.ok) {
         toast.success(editingItem ? "Jadval tahrirlandi" : "Jadval qo'shildi");
         setIsModalOpen(false);
         fetchTimetables();
       } else {
-        toast.error("Xatolik yuz berdi");
+        const errorData = await response.json();
+        const errorMessage = errorData.detail || JSON.stringify(errorData);
+        toast.error(`Xatolik yuz berdi: ${errorMessage}`);
       }
-    } catch (error) {
-      toast.error("Server bilan bog'lanishda xatolik");
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        toast.error("Yuklash vaqti tugadi. Iltimos, internet aloqangizni tekshiring yoki keyinroq urinib ko'ring.");
+      } else {
+        toast.error("Server bilan bog'lanishda xatolik");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -161,7 +178,12 @@ export default function DarsJadvali() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto overflow-x-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto overflow-x-hidden"
+    >
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-[#1f2937] p-5 md:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
         <div>
@@ -194,9 +216,9 @@ export default function DarsJadvali() {
                 </button>
               </div>
             </div>
-            <h3 className="font-bold text-gray-900 dark:text-white mb-2 line-clamp-1">{item.document_name_uz}</h3>
-            {item.note_uz && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 min-h-[40px]">{item.note_uz}</p>
+            <h3 className="font-bold text-gray-900 dark:text-white mb-2 line-clamp-1">{item.translations.uz.document_name}</h3>
+            {item.translations.uz.note && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 min-h-[40px]">{item.translations.uz.note}</p>
             )}
             <a
               href={getImageUrl(item.document_file)}
@@ -259,12 +281,20 @@ export default function DarsJadvali() {
                       <input
                         type="text"
                         value={
-                          activeTab === "uz" ? formData.document_name_uz :
-                          formData.document_name_ru
+                          activeTab === "uz" ? formData.translations.uz.document_name :
+                          formData.translations.ru.document_name
                         }
                         onChange={(e) => {
-                          const field = `document_name_${activeTab}` as keyof typeof formData;
-                          setFormData({ ...formData, [field]: e.target.value });
+                          setFormData({
+                            ...formData,
+                            translations: {
+                              ...formData.translations,
+                              [activeTab]: {
+                                ...formData.translations[activeTab],
+                                document_name: e.target.value
+                              }
+                            }
+                          });
                         }}
                         placeholder={`Masalan: 10-A sinf dars jadvali (${activeTab})`}
                         className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-4 focus:ring-[#0d89b1]/10 focus:border-[#0d89b1] outline-none transition-all text-sm"
@@ -278,12 +308,20 @@ export default function DarsJadvali() {
                       </label>
                       <textarea
                         value={
-                          activeTab === "uz" ? formData.note_uz :
-                          formData.note_ru
+                          activeTab === "uz" ? formData.translations.uz.note :
+                          formData.translations.ru.note
                         }
                         onChange={(e) => {
-                          const field = `note_${activeTab}` as keyof typeof formData;
-                          setFormData({ ...formData, [field]: e.target.value });
+                          setFormData({
+                            ...formData,
+                            translations: {
+                              ...formData.translations,
+                              [activeTab]: {
+                                ...formData.translations[activeTab],
+                                note: e.target.value
+                              }
+                            }
+                          });
                         }}
                         placeholder="Jadval haqida qisqacha ma'lumot..."
                         rows={2}
@@ -328,6 +366,6 @@ export default function DarsJadvali() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

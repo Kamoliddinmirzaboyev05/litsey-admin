@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X, Loader2, Layout, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -7,14 +8,12 @@ import { ImageUpload } from "../components/ImageUpload";
 interface Slider {
   id: number;
   image: string;
-  title_uz: string;
-  title_uz_cyrl: string;
-  title_ru: string;
-  title_en: string;
-  description_uz: string;
-  description_uz_cyrl: string;
-  description_ru: string;
-  description_en: string;
+  translations: {
+    uz: { title: string; description: string };
+    ru: { title: string; description: string };
+    en?: { title: string; description: string };
+    uz_cyrl?: { title: string; description: string };
+  };
   sort_order: number;
   is_active: boolean;
 }
@@ -31,12 +30,8 @@ export default function Slayderlar() {
   const [formData, setFormData] = useState({
     title_uz: "",
     title_ru: "",
-    title_en: "",
-    title_uz_cyrl: "",
     description_uz: "",
     description_ru: "",
-    description_en: "",
-    description_uz_cyrl: "",
     sort_order: 0,
     is_active: true,
     image: null as File | string | null,
@@ -70,7 +65,7 @@ export default function Slayderlar() {
   };
 
   const filteredSliders = sliders.filter((s) =>
-    (s.title_uz || "").toLowerCase().includes(searchQuery.toLowerCase())
+    (s.translations?.uz?.title || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleAdd = () => {
@@ -78,12 +73,8 @@ export default function Slayderlar() {
     setFormData({
       title_uz: "",
       title_ru: "",
-      title_en: "",
-      title_uz_cyrl: "",
       description_uz: "",
       description_ru: "",
-      description_en: "",
-      description_uz_cyrl: "",
       sort_order: sliders.length,
       is_active: true,
       image: null,
@@ -94,14 +85,10 @@ export default function Slayderlar() {
   const handleEdit = (slider: Slider) => {
     setEditingSlider(slider);
     setFormData({
-      title_uz: slider.title_uz || "",
-      title_ru: slider.title_ru || "",
-      title_en: slider.title_en || "",
-      title_uz_cyrl: slider.title_uz_cyrl || "",
-      description_uz: slider.description_uz || "",
-      description_ru: slider.description_ru || "",
-      description_en: slider.description_en || "",
-      description_uz_cyrl: slider.description_uz_cyrl || "",
+      title_uz: slider.translations?.uz?.title || "",
+      title_ru: slider.translations?.ru?.title || "",
+      description_uz: slider.translations?.uz?.description || "",
+      description_ru: slider.translations?.ru?.description || "",
       sort_order: slider.sort_order || 0,
       is_active: slider.is_active,
       image: getImageUrl(slider.image),
@@ -141,12 +128,13 @@ export default function Slayderlar() {
     
     data.append("title_uz", formData.title_uz);
     data.append("title_ru", formData.title_ru);
-    data.append("title_en", formData.title_en);
-    data.append("title_uz_cyrl", formData.title_uz_cyrl);
+    // Optional fields
+    data.append("title_en", "");
+    data.append("title_uz_cyrl", "");
     data.append("description_uz", formData.description_uz);
     data.append("description_ru", formData.description_ru);
-    data.append("description_en", formData.description_en);
-    data.append("description_uz_cyrl", formData.description_uz_cyrl);
+    data.append("description_en", "");
+    data.append("description_uz_cyrl", "");
     data.append("sort_order", String(formData.sort_order));
     data.append("is_active", formData.is_active ? "true" : "false");
 
@@ -199,7 +187,12 @@ export default function Slayderlar() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-[1400px] mx-auto overflow-x-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto overflow-x-hidden"
+    >
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-[#1f2937] p-5 md:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
         <div>
@@ -239,7 +232,7 @@ export default function Slayderlar() {
             <div className="w-full md:w-72 lg:w-96 aspect-video md:aspect-auto relative overflow-hidden">
               <img
                 src={getImageUrl(slider.image)}
-                alt={slider.title_uz}
+                alt={slider.translations?.uz?.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-black/20" />
@@ -251,12 +244,12 @@ export default function Slayderlar() {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-bold text-gray-900 dark:text-white text-lg md:text-xl">
-                        {slider.title_uz}
+                        {slider.translations?.uz?.title}
                       </h3>
                       <span className={`w-2.5 h-2.5 rounded-full ${slider.is_active ? 'bg-green-500' : 'bg-red-500'}`} />
                     </div>
                     <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed line-clamp-3">
-                      {slider.description_uz || "Tavsif berilmagan."}
+                      {slider.translations?.uz?.description || "Tavsif berilmagan."}
                     </p>
                   </div>
                   <div className="flex gap-2 shrink-0">
@@ -439,6 +432,6 @@ export default function Slayderlar() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

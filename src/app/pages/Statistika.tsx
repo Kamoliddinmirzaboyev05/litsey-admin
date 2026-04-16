@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, X, Loader2, BarChart3, Save, Trash, Users, Book, Trophy, GraduationCap, School, UserCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -163,7 +164,12 @@ export default function Statistika() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="p-6 space-y-6 max-w-[1400px] mx-auto"
+    >
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -358,6 +364,6 @@ export default function Statistika() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

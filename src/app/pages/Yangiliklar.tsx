@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X, Loader2 } from "lucide-react";
 import { Dialog } from "../components/ui/dialog";
@@ -221,7 +222,12 @@ export default function Yangiliklar() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto overflow-x-hidden"
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -516,6 +522,6 @@ export default function Yangiliklar() {
           </div>
         </Dialog>
       )}
-    </div>
+    </motion.div>
   );
 }
