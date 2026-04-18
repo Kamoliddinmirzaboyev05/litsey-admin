@@ -1,12 +1,25 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, X, Loader2, HelpCircle, Save, Check, Star } from "lucide-react";
+import { Plus, Search, Edit, Trash2, X, Loader2, HelpCircle, Save, Star } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL } from "../../config/api";
+import { Skeleton } from "../components/ui/skeleton";
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 
 interface FAQ {
   id: number;
   category: "admission" | "general" | "education" | "payment";
+  category_display?: string;
   is_featured: boolean;
   sort_order: number;
   is_active: boolean;
@@ -18,6 +31,12 @@ interface FAQ {
   answer_ru?: string;
   answer_en?: string;
   answer_uz_cyrl?: string;
+  translations?: {
+    uz?: { question?: string; answer?: string };
+    ru?: { question?: string; answer?: string };
+    en?: { question?: string; answer?: string };
+    uz_cyrl?: { question?: string; answer?: string };
+  };
 }
 
 export default function Savollar() {
@@ -27,6 +46,9 @@ export default function Savollar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFaq, setEditingFaq] = useState<FAQ | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [faqToDelete, setFaqToDelete] = useState<FAQ | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
 
   const [formData, setFormData] = useState({
@@ -58,16 +80,35 @@ export default function Savollar() {
     fetchFaqs();
   }, []);
 
+  const normalizeFaq = (faq: any): FAQ => ({
+    id: faq.id,
+    category: faq.category || "general",
+    category_display: faq.category_display,
+    is_featured: Boolean(faq.is_featured),
+    sort_order: Number(faq.sort_order || 0),
+    is_active: faq.is_active !== false,
+    question_uz: faq.question_uz || faq.translations?.uz?.question || "",
+    question_ru: faq.question_ru || faq.translations?.ru?.question || "",
+    question_en: faq.question_en || faq.translations?.en?.question || "",
+    question_uz_cyrl: faq.question_uz_cyrl || faq.translations?.uz_cyrl?.question || "",
+    answer_uz: faq.answer_uz || faq.translations?.uz?.answer || "",
+    answer_ru: faq.answer_ru || faq.translations?.ru?.answer || "",
+    answer_en: faq.answer_en || faq.translations?.en?.answer || "",
+    answer_uz_cyrl: faq.answer_uz_cyrl || faq.translations?.uz_cyrl?.answer || "",
+    translations: faq.translations,
+  });
+
   const fetchFaqs = async () => {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/faqs/`, {
+      const response = await fetch(`${API_BASE_URL}/faqs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
-        setFaqs(Array.isArray(data) ? data : data.results || []);
+        const list = Array.isArray(data) ? data : data.results || [];
+        setFaqs(list.map(normalizeFaq));
       }
     } catch (error) {
       toast.error("Savollarni yuklashda xatolik");
@@ -111,20 +152,25 @@ export default function Savollar() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Ushbu savolni o'chirmoqchimisiz?")) return;
+  const handleDelete = async () => {
+    if (!faqToDelete) return;
+    setIsDeleting(true);
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/faqs/${id}/`, {
+      const response = await fetch(`${API_BASE_URL}/faqs/${faqToDelete.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         toast.success("Savol o'chirildi");
+        setIsDeleteDialogOpen(false);
+        setFaqToDelete(null);
         fetchFaqs();
       }
     } catch (error) {
       toast.error("Xatolik yuz berdi");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -135,8 +181,8 @@ export default function Savollar() {
     const token = sessionStorage.getItem("auth_token");
     try {
       const url = editingFaq
-        ? `${API_BASE_URL}/faqs/${editingFaq.id}/`
-        : `${API_BASE_URL}/faqs/`;
+        ? `${API_BASE_URL}/faqs/${editingFaq.id}`
+        : `${API_BASE_URL}/faqs`;
       const method = editingFaq ? "PATCH" : "POST";
 
       const response = await fetch(url, {
@@ -164,11 +210,7 @@ export default function Savollar() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-[#0d89b1]" />
-      </div>
-    );
+    return <SkeletonLoader type="list" />;
   }
 
   return (
@@ -254,7 +296,10 @@ export default function Savollar() {
                   <Edit className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => handleDelete(faq.id)}
+                  onClick={() => {
+                    setFaqToDelete(faq);
+                    setIsDeleteDialogOpen(true);
+                  }}
                   className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 transition-colors shadow-sm"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -442,6 +487,29 @@ export default function Savollar() {
           </div>
         </div>
       )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Savolni o'chirish</AlertDialogTitle>
+            <AlertDialogDescription>
+              Haqiqatan ham ushbu savolni o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setFaqToDelete(null)}>
+              Bekor qilish
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "O'chirilmoqda..." : "Ha, o'chirish"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Users, UserCog, Newspaper, Bell, Plus, Eye, Loader2, ShieldCheck } from "lucide-react";
 import { API_BASE_URL } from "../../config/api";
 import { Link } from "react-router";
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
 
 interface StatItem {
   label: string;
@@ -32,10 +33,10 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const [teachersRes, newsRes, announcementsRes, managementRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/teachers/`),
-        fetch(`${API_BASE_URL}/news/`),
-        fetch(`${API_BASE_URL}/announcements/`),
-        fetch(`${API_BASE_URL}/management/`),
+        fetch(`${API_BASE_URL}/teachers`),
+        fetch(`${API_BASE_URL}/news`),
+        fetch(`${API_BASE_URL}/announcements`),
+        fetch(`${API_BASE_URL}/management`),
       ]);
 
       const [teachersData, newsData, announcementsData, managementData] = await Promise.all([
@@ -71,6 +72,10 @@ export default function Dashboard() {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return <SkeletonLoader type="dashboard" />;
+  }
 
   return (
     <motion.div

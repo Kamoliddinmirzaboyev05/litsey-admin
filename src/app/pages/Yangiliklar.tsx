@@ -2,10 +2,12 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X, Loader2 } from "lucide-react";
 import { Dialog } from "../components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { ImageUpload } from "../components/ImageUpload";
 import { toast } from "sonner";
 import { API_BASE_URL, getImageUrl } from "../../config/api";
+import { PageSkeleton as SkeletonLoader, TableRowSkeleton } from "../components/PageSkeleton";
 
 interface NewsTranslation {
   title: string;
@@ -39,6 +41,7 @@ export default function Yangiliklar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNews, setEditingNews] = useState<News | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
   
   const [formData, setFormData] = useState({
@@ -67,7 +70,7 @@ export default function Yangiliklar() {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/news/`, {
+      const response = await fetch(`${API_BASE_URL}/news`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -138,31 +141,30 @@ export default function Yangiliklar() {
   };
 
   const handleDelete = async (slug: string) => {
-    if (confirm("Ushbu yangilikni o'chirmoqchimisiz?")) {
-      try {
-        const token = sessionStorage.getItem("auth_token");
-        const response = await fetch(`${API_BASE_URL}/news/${slug}/`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    try {
+      const token = sessionStorage.getItem("auth_token");
+      const response = await fetch(`${API_BASE_URL}/news/${slug}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        if (response.ok) {
-          toast.success("Yangilik o'chirildi");
-          fetchNews();
-        } else {
-          toast.error("O'chirishda xatolik yuz berdi");
-        }
-      } catch (error) {
-        toast.error("Server bilan bog'lanishda xatolik");
+      if (response.ok) {
+        toast.success("Yangilik o'chirildi");
+        fetchNews();
+      } else {
+        toast.error("O'chirishda xatolik yuz berdi");
       }
+    } catch (error) {
+      toast.error("Server bilan bog'lanishda xatolik");
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setUploadProgress(0);
 
     const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
@@ -190,36 +192,58 @@ export default function Yangiliklar() {
       data.append("image", formData.image);
     }
 
-    try {
-      const url = editingNews
-        ? `${API_BASE_URL}/news/${editingNews.slug}/`
-        : `${API_BASE_URL}/news/`;
-      const method = editingNews ? "PATCH" : "POST";
+    const uploadWithXHR = () => {
+      return new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(progress);
+          }
+        });
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: data,
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            const errorData = JSON.parse(xhr.responseText || "{}");
+            reject(new Error(errorData.detail || "Server xatosi"));
+          }
+        });
+
+        xhr.addEventListener("error", () => reject(new Error("Tarmoq xatosi")));
+
+        const url = editingNews
+          ? `${API_BASE_URL}/news/${editingNews.slug}/`
+          : `${API_BASE_URL}/news/`;
+        const method = editingNews ? "PATCH" : "POST";
+
+        xhr.open(method, url);
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.send(data);
       });
+    };
 
-      if (response.ok) {
-        toast.success(
-          editingNews ? "Yangilik tahrirlandi" : "Yangilik qo'shildi"
-        );
+    try {
+      await uploadWithXHR();
+      setUploadProgress(100);
+      toast.success(editingNews ? "Yangilik tahrirlandi" : "Yangilik qo'shildi");
+      setTimeout(() => {
         setIsModalOpen(false);
-        fetchNews();
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.detail || "Xatolik yuz berdi");
-      }
-    } catch (error) {
-      toast.error("Server bilan bog'lanishda xatolik");
+        setUploadProgress(0);
+      }, 500);
+      fetchNews();
+    } catch (error: any) {
+      toast.error(error.message || "Server bilan bog'lanishda xatolik");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (loading) {
+    return <SkeletonLoader type="table" />;
+  }
 
   return (
     <motion.div
@@ -284,14 +308,7 @@ export default function Yangiliklar() {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="w-8 h-8 text-[#0d89b1] animate-spin" />
-                      <p className="text-sm text-[#64748b] dark:text-gray-400">Yuklanmoqda...</p>
-                    </div>
-                  </td>
-                </tr>
+                <TableRowSkeleton columns={5} />
               ) : filteredNews.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-10 text-center">
@@ -342,12 +359,27 @@ export default function Yangiliklar() {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleDelete(item.slug)}
-                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Yangilikni o'chirish</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Rostdan ham ushbu yangilikni o'chirmoqchimisiz? Bu amal ortga qaytarilmaydi.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(item.slug)} className="bg-red-600 hover:bg-red-700">
+                                Ha, o'chirish
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </td>
                   </tr>
@@ -495,8 +527,10 @@ export default function Yangiliklar() {
                   <ImageUpload
                     label="Asosiy rasm"
                     value={formData.image}
-                    onChange={(file) => setFormData({ ...formData, image: file })}
+                    onChange={(file) => setFormData({ ...formData, image: file as File })}
                     placeholder="Yangilik rasmini yuklash uchun bosing"
+                    isUploading={isSubmitting}
+                    uploadProgress={uploadProgress}
                   />
                 </div>
 

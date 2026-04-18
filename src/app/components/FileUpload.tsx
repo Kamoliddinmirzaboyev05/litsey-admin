@@ -1,0 +1,283 @@
+import { useState, useRef, useEffect } from "react";
+import { Upload, X, FileVideo, CheckCircle2, AlertCircle } from "lucide-react";
+
+interface FileUploadProps {
+  value: string | File | File[] | null;
+  onChange: (value: File | File[] | null) => void;
+  label: string;
+  placeholder?: string;
+  accept?: string;
+  maxSizeMB?: number;
+  isVideo?: boolean;
+  multiple?: boolean;
+  isUploading?: boolean;
+  uploadProgress?: number;
+}
+
+export function FileUpload({
+  value,
+  onChange,
+  label,
+  placeholder = "Fayl yuklash uchun bosing yoki torting",
+  accept = "image/*",
+  maxSizeMB = 50,
+  isVideo = false,
+  multiple = false,
+  isUploading: externalIsUploading,
+  uploadProgress: externalUploadProgress,
+}: FileUploadProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [uploadError, setUploadError] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const isUploading = externalIsUploading || false;
+  const uploadProgress = externalUploadProgress || 0;
+
+  useEffect(() => {
+    const loadPreviews = async () => {
+      if (!value) {
+        setPreviews([]);
+        return;
+      }
+
+      if (typeof value === "string") {
+        setPreviews([value]);
+        return;
+      }
+
+      if (value instanceof File) {
+        if (isVideo && value.type.startsWith("video/")) {
+          setPreviews([]);
+        } else {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setPreviews([reader.result as string]);
+          };
+          reader.readAsDataURL(value);
+        }
+        return;
+      }
+
+      if (Array.isArray(value)) {
+        const previewPromises = value.map((item) => {
+          if (typeof item === "string") {
+            return Promise.resolve(item);
+          }
+          if (item instanceof File) {
+            return new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(item);
+            });
+          }
+          return Promise.resolve("");
+        });
+
+        const results = await Promise.all(previewPromises);
+        setPreviews(results.filter((p) => p !== ""));
+      }
+    };
+
+    loadPreviews();
+  }, [value, isVideo]);
+
+  const handleFileChange = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const maxBytes = maxSizeMB * 1024 * 1024;
+    const validFiles: File[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size > maxBytes) {
+        setUploadError(`Fayl hajmi ${maxSizeMB}MB dan katta. Fayl: ${file.name}`);
+        return;
+      }
+      validFiles.push(file);
+    }
+
+    setUploadError("");
+
+    if (isVideo) {
+      onChange(multiple ? validFiles : validFiles[0]);
+    } else {
+      const allImages = validFiles.every(f => f.type.startsWith("image/"));
+      if (allImages) {
+        onChange(multiple ? validFiles : validFiles[0]);
+      } else {
+        setUploadError("Iltimos, faqat rasm fayllarini tanlang");
+      }
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFileChange(e.dataTransfer.files);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleClick = () => {
+    if (!isUploading) {
+      inputRef.current?.click();
+    }
+  };
+
+  const handleRemove = (index: number) => {
+    if (Array.isArray(value)) {
+      const newValue = [...value];
+      newValue.splice(index, 1);
+      onChange(newValue.length > 0 ? newValue : null);
+    } else {
+      setPreviews([]);
+      setUploadError("");
+      onChange(null);
+    }
+    
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+  };
+
+  const renderUploadArea = () => (
+    <div
+      onClick={handleClick}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
+        isDragging
+          ? "border-[#0d89b1] bg-[#0d89b1]/5 dark:bg-[#0d89b1]/10"
+          : "border-gray-200 dark:border-gray-700 hover:border-[#0d89b1] dark:hover:border-[#0d89b1] bg-[#f8fafc] dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800"
+      } ${isUploading ? "pointer-events-none opacity-70" : ""}`}
+    >
+      <input
+        type="file"
+        ref={inputRef}
+        onChange={(e) => handleFileChange(e.target.files)}
+        className="hidden"
+        accept={accept}
+        multiple={multiple}
+      />
+      <div className="flex flex-col items-center gap-3">
+        <div className={`p-3 rounded-full shadow-sm border border-gray-100 dark:border-gray-700 ${isVideo ? "bg-purple-50 dark:bg-purple-900/20" : "bg-white dark:bg-[#1f2937]"}`}>
+          {isVideo ? (
+            <FileVideo className="w-6 h-6 text-purple-500" />
+          ) : (
+            <Upload className="w-6 h-6 text-[#0d89b1]" />
+          )}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-[#1f2937] dark:text-gray-200">
+            {placeholder}
+          </p>
+          <p className="text-xs text-[#64748b] dark:text-gray-400 mt-1">
+            {isVideo ? "MP4, MOV, AVI (Maks. " : "PNG, JPG, WEBP (Maks. "}{maxSizeMB}MB)
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderProgressBar = () => (
+    <div className="mt-4 space-y-2">
+      <div className="flex justify-between items-center text-xs">
+        <span className="text-[#64748b] dark:text-gray-400">
+          {uploadProgress < 100 ? "Yuklanmoqda..." : "Tugallandi"}
+        </span>
+        <span className="font-bold text-[#0d89b1]">{uploadProgress}%</span>
+      </div>
+      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-300 ease-out"
+          style={{
+            width: `${uploadProgress}%`,
+            background: uploadProgress === 100
+              ? "linear-gradient(90deg, #10b981, #059669)"
+              : "linear-gradient(90deg, #0d89b1, #0a6d8f)",
+          }}
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <label className="block text-sm font-medium text-[#1f2937] dark:text-gray-200">{label}</label>
+
+      {uploadError && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+          <p className="text-xs text-red-600 dark:text-red-400">{uploadError}</p>
+        </div>
+      )}
+
+      {isUploading && (
+        <div className="p-6 bg-[#0d89b1]/5 dark:bg-[#0d89b1]/10 border border-[#0d89b1]/20 rounded-xl space-y-3">
+          <div className="flex items-center gap-3">
+            {isVideo ? (
+              <FileVideo className="w-8 h-8 text-purple-500 animate-pulse" />
+            ) : (
+              <Upload className="w-8 h-8 text-[#0d89b1] animate-pulse" />
+            )}
+            <div>
+              <p className="text-sm font-bold text-[#0d89b1]">Fayl yuklanmoqda...</p>
+              <p className="text-xs text-[#0d89b1]/70">
+                {isVideo ? "Video tayyorlanmoqda, kuting" : "Rasm yuklanmoqda, kuting"}
+              </p>
+            </div>
+          </div>
+          {renderProgressBar()}
+        </div>
+      )}
+
+      {previews.length > 0 && !isUploading ? (
+        <div className={multiple ? "grid grid-cols-2 gap-2" : "relative"}>
+          {previews.map((preview, index) => (
+            <div key={index} className="relative">
+              {isVideo ? (
+                <video
+                  src={preview}
+                  controls
+                  className="w-full h-32 object-cover rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm"
+                />
+              ) : (
+                <img
+                  src={preview}
+                  alt={`Preview ${index}`}
+                  className="w-full h-32 object-cover rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-colors"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => handleRemove(index)}
+                className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        !isUploading && renderUploadArea()
+      )}
+    </div>
+  );
+}
+
+export function ImageUpload(props: Omit<FileUploadProps, "isVideo" | "accept">) {
+  return <FileUpload {...props} accept="image/*" isVideo={false} />;
+}
+
+export function VideoUpload(props: Omit<FileUploadProps, "isVideo" | "accept">) {
+  return <FileUpload {...props} accept="video/*" isVideo={true} />;
+}

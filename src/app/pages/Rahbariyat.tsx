@@ -2,10 +2,12 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, X, Loader2 } from "lucide-react";
 import { Dialog } from "../components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { ImageUpload } from "../components/ImageUpload";
 import { toast } from "sonner";
 import { API_BASE_URL, getImageUrl } from "../../config/api";
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
 
 interface ManagementTranslation {
   position: string;
@@ -66,7 +68,7 @@ export default function Rahbariyat() {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/management/`, {
+      const response = await fetch(`${API_BASE_URL}/management`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -123,22 +125,20 @@ export default function Rahbariyat() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Ushbu rahbar ma'lumotlarini o'chirmoqchimisiz?")) {
-      try {
-        const token = sessionStorage.getItem("auth_token");
-        const response = await fetch(`${API_BASE_URL}/management/${id}/`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          toast.success("Muvaffaqiyatli o'chirildi");
-          fetchLeaders();
-        } else {
-          toast.error("O'chirishda xatolik");
-        }
-      } catch (error) {
-        toast.error("Server bilan bog'lanishda xatolik");
+    try {
+      const token = sessionStorage.getItem("auth_token");
+      const response = await fetch(`${API_BASE_URL}/management/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        toast.success("Muvaffaqiyatli o'chirildi");
+        fetchLeaders();
+      } else {
+        toast.error("O'chirishda xatolik");
       }
+    } catch (error) {
+      toast.error("Server bilan bog'lanishda xatolik");
     }
   };
 
@@ -177,8 +177,8 @@ export default function Rahbariyat() {
 
     try {
       const url = editingLeader
-        ? `${API_BASE_URL}/management/${editingLeader.id}/`
-        : `${API_BASE_URL}/management/`;
+        ? `${API_BASE_URL}/management/${editingLeader.id}`
+        : `${API_BASE_URL}/management`;
       const method = editingLeader ? "PATCH" : "POST";
 
       const response = await fetch(url, {
@@ -215,6 +215,10 @@ export default function Rahbariyat() {
     }
   };
 
+  if (loading) {
+    return <SkeletonLoader type="grid" />;
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -238,12 +242,7 @@ export default function Rahbariyat() {
       </div>
 
       {/* Leaders Display */}
-      {loading ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="w-8 h-8 text-[#0d89b1] animate-spin" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {leaders.map((leader) => (
             <div
               key={leader.id}
@@ -308,17 +307,31 @@ export default function Rahbariyat() {
                   <Edit className="w-4 h-4" />
                   Tahrirlash
                 </button>
-                <button
-                  onClick={() => handleDelete(leader.id)}
-                  className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Rahbar ma'lumotlarini o'chirish</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Rostdan ham ushbu rahbar ma'lumotlarini o'chirmoqchimisiz? Bu amal ortga qaytarilmaydi.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(leader.id)} className="bg-red-600 hover:bg-red-700">
+                        Ha, o'chirish
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
 
       {/* Modal */}
       {isModalOpen && (
@@ -363,8 +376,9 @@ export default function Rahbariyat() {
                       <ImageUpload
                         label="Fotosurat"
                         value={formData.photo}
-                        onChange={(file) => setFormData({ ...formData, photo: file })}
+                        onChange={(file) => setFormData({ ...formData, photo: file as File })}
                         placeholder="Rasm yuklash"
+                        isUploading={isSubmitting}
                       />
                       <div className="space-y-4">
                         <div>

@@ -2,10 +2,12 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X, Grid3x3, List, Loader2 } from "lucide-react";
 import { Dialog } from "../components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { ImageUpload } from "../components/ImageUpload";
 import { toast } from "sonner";
 import { API_BASE_URL, getImageUrl } from "../../config/api";
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
 
 interface TeacherTranslation {
   position: string;
@@ -88,10 +90,10 @@ export default function Oqituvchilar() {
     try {
       const token = sessionStorage.getItem("auth_token");
       const [teacherRes, deptRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/teachers/`, {
+        fetch(`${API_BASE_URL}/teachers`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${API_BASE_URL}/departments/`, {
+        fetch(`${API_BASE_URL}/departments`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -173,22 +175,20 @@ export default function Oqituvchilar() {
   };
 
   const handleDelete = async (slug: string) => {
-    if (confirm("Ushbu o'qituvchini o'chirmoqchimisiz?")) {
-      try {
-        const token = sessionStorage.getItem("auth_token");
-        const response = await fetch(`${API_BASE_URL}/teachers/${slug}/`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          toast.success("O'qituvchi o'chirildi");
-          fetchTeachers();
-        } else {
-          toast.error("O'chirishda xatolik");
-        }
-      } catch (error) {
-        toast.error("Server bilan bog'lanishda xatolik");
+    try {
+      const token = sessionStorage.getItem("auth_token");
+      const response = await fetch(`${API_BASE_URL}/teachers/${slug}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        toast.success("O'qituvchi o'chirildi");
+        fetchTeachers();
+      } else {
+        toast.error("O'chirishda xatolik");
       }
+    } catch (error) {
+      toast.error("Server bilan bog'lanishda xatolik");
     }
   };
 
@@ -238,8 +238,8 @@ export default function Oqituvchilar() {
 
     try {
       const url = editingTeacher
-        ? `${API_BASE_URL}/teachers/${editingTeacher.slug}/`
-        : `${API_BASE_URL}/teachers/`;
+        ? `${API_BASE_URL}/teachers/${editingTeacher.slug}`
+        : `${API_BASE_URL}/teachers`;
       const method = editingTeacher ? "PATCH" : "POST";
 
       const response = await fetch(url, {
@@ -269,6 +269,10 @@ export default function Oqituvchilar() {
       setIsSubmitting(false);
     }
   };
+
+  if (loading) {
+    return <SkeletonLoader type={viewMode === "table" ? "table" : "grid"} />;
+  }
 
   return (
     <motion.div
@@ -403,12 +407,27 @@ export default function Oqituvchilar() {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleDelete(teacher.slug)}
-                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>O'qituvchini o'chirish</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Rostdan ham ushbu o'qituvchini o'chirmoqchimisiz? Bu amal ortga qaytarilmaydi.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(teacher.slug)} className="bg-red-600 hover:bg-red-700">
+                                Ha, o'chirish
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </td>
                   </tr>
@@ -467,12 +486,27 @@ export default function Oqituvchilar() {
                     <Edit className="w-4 h-4" />
                     Tahrirlash
                   </button>
-                  <button
-                    onClick={() => handleDelete(teacher.slug)}
-                    className="px-3 py-2 text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="px-3 py-2 text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>O'qituvchini o'chirish</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Rostdan ham ushbu o'qituvchini o'chirmoqchimisiz? Bu amal ortga qaytarilmaydi.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(teacher.slug)} className="bg-red-600 hover:bg-red-700">
+                          Ha, o'chirish
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </div>
@@ -523,8 +557,9 @@ export default function Oqituvchilar() {
                       <ImageUpload
                         label="O'qituvchi fotosurati"
                         value={formData.photo}
-                        onChange={(file) => setFormData({ ...formData, photo: file })}
+                        onChange={(file) => setFormData({ ...formData, photo: file as File })}
                         placeholder="Fotosuratni yuklash uchun bosing"
+                        isUploading={isSubmitting}
                       />
                       <div className="space-y-4">
                         <div>

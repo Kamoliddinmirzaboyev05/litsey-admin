@@ -3,11 +3,14 @@ import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X, Loader2, Layout, Save } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL, getImageUrl } from "../../config/api";
-import { ImageUpload } from "../components/ImageUpload";
+import { ImageUpload, VideoUpload } from "../components/ImageUpload";
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog";
 
 interface Slider {
   id: number;
   image: string;
+  video?: string;
   translations: {
     uz: { title: string; description: string };
     ru: { title: string; description: string };
@@ -25,6 +28,7 @@ export default function Slayderlar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlider, setEditingSlider] = useState<Slider | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
 
   const [formData, setFormData] = useState({
@@ -35,6 +39,7 @@ export default function Slayderlar() {
     sort_order: 0,
     is_active: true,
     image: null as File | string | null,
+    video: null as File | string | null,
   });
 
   const languages = [
@@ -50,7 +55,7 @@ export default function Slayderlar() {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/sliders/`, {
+      const response = await fetch(`${API_BASE_URL}/sliders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -78,6 +83,7 @@ export default function Slayderlar() {
       sort_order: sliders.length,
       is_active: true,
       image: null,
+      video: null,
     });
     setIsModalOpen(true);
   };
@@ -92,15 +98,15 @@ export default function Slayderlar() {
       sort_order: slider.sort_order || 0,
       is_active: slider.is_active,
       image: getImageUrl(slider.image),
+      video: slider.video ? getImageUrl(slider.video) : null,
     });
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Ushbu slayderni o'chirmoqchimisiz?")) return;
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/sliders/${id}/`, {
+      const response = await fetch(`${API_BASE_URL}/sliders/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -122,6 +128,7 @@ export default function Slayderlar() {
     }
 
     setIsSubmitting(true);
+    setUploadProgress(0);
 
     const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
@@ -142,48 +149,71 @@ export default function Slayderlar() {
       data.append("image", formData.image);
     }
 
-    try {
-      const url = editingSlider
-        ? `${API_BASE_URL}/sliders/${editingSlider.id}/`
-        : `${API_BASE_URL}/sliders/`;
-      const method = editingSlider ? "PATCH" : "POST";
+    if (formData.video instanceof File) {
+      data.append("video", formData.video);
+    }
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: data,
+    const uploadWithXHR = () => {
+      return new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(progress);
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            try {
+              const errorData = JSON.parse(xhr.responseText || "{}");
+              let errorMsg = "Xatolik yuz berdi";
+              if (errorData && typeof errorData === "object") {
+                const firstKey = Object.keys(errorData)[0];
+                const error = errorData[firstKey];
+                errorMsg = Array.isArray(error) ? `${firstKey}: ${error[0]}` : (errorData.detail || errorMsg);
+              }
+              reject(new Error(errorMsg));
+            } catch {
+              reject(new Error("Server xatosi"));
+            }
+          }
+        });
+
+        xhr.addEventListener("error", () => reject(new Error("Tarmoq xatosi")));
+
+        const url = editingSlider
+          ? `${API_BASE_URL}/sliders/${editingSlider.id}/`
+          : `${API_BASE_URL}/sliders/`;
+        const method = editingSlider ? "PATCH" : "POST";
+
+        xhr.open(method, url);
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.send(data);
       });
+    };
 
-      if (response.ok) {
-        toast.success(editingSlider ? "Slayder tahrirlandi" : "Slayder qo'shildi");
+    try {
+      await uploadWithXHR();
+      setUploadProgress(100);
+      toast.success(editingSlider ? "Slayder tahrirlandi" : "Slayder qo'shildi");
+      setTimeout(() => {
         setIsModalOpen(false);
-        fetchSliders();
-      } else {
-        const errData = await response.json();
-        // Handle field-specific errors from backend (typical in DRF)
-        let errorMsg = "Xatolik yuz berdi";
-        if (errData && typeof errData === "object") {
-          const firstKey = Object.keys(errData)[0];
-          const error = errData[firstKey];
-          errorMsg = Array.isArray(error) ? `${firstKey}: ${error[0]}` : (errData.detail || errorMsg);
-        }
-        toast.error(errorMsg);
-      }
-    } catch (error) {
-      toast.error("Server bilan bog'lanishda xatolik");
+        setUploadProgress(0);
+      }, 500);
+      fetchSliders();
+    } catch (error: any) {
+      toast.error(error.message || "Server bilan bog'lanishda xatolik");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-[#0d89b1]" />
-      </div>
-    );
+    return <SkeletonLoader type="list" />;
   }
 
   return (
@@ -259,12 +289,27 @@ export default function Slayderlar() {
                     >
                       <Edit className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
-                    <button
-                      onClick={() => handleDelete(slider.id)}
-                      className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md hover:bg-red-100 transition-colors shadow-sm"
-                    >
-                      <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
-                    </button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md hover:bg-red-100 transition-colors shadow-sm">
+                          <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Slayderni o'chirish</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Rostdan ham ushbu slayderni o'chirmoqchimisiz? Bu amal ortga qaytarilmaydi.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(slider.id)} className="bg-red-600 hover:bg-red-700">
+                            Ha, o'chirish
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </div>
@@ -308,7 +353,7 @@ export default function Slayderlar() {
                     <button
                       key={lang.id}
                       type="button"
-                      onClick={() => setActiveTab(lang.id)}
+                      onClick={() => setActiveTab(lang.id as "uz" | "ru")}
                       className={`px-3 md:px-4 py-1.5 md:py-2 text-xs font-bold rounded-md transition-all ${
                         activeTab === lang.id
                           ? "bg-white dark:bg-gray-700 text-[#0d89b1] shadow-sm"
@@ -391,7 +436,7 @@ export default function Slayderlar() {
                   </div>
                 </div>
 
-                {/* Image Upload */}
+                {/* Image & Video Upload */}
                 <div className="space-y-6">
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                     <span className="w-4 h-[1px] bg-gray-300" />
@@ -400,9 +445,21 @@ export default function Slayderlar() {
                   <ImageUpload
                     label="Katta o'lchamdagi rasm (1920x1080)"
                     value={formData.image}
-                    onChange={(file) => setFormData({ ...formData, image: file })}
+                    onChange={(file) => setFormData({ ...formData, image: file as File })}
                     placeholder="Yuklash uchun bosing"
+                    isUploading={isSubmitting}
+                    uploadProgress={uploadProgress}
                   />
+                  <div className="pt-2">
+                    <VideoUpload
+                      label="Video (ixtiyoriy)"
+                      value={formData.video}
+                      onChange={(file) => setFormData({ ...formData, video: file as File })}
+                      placeholder="Video yuklash uchun bosing"
+                      isUploading={isSubmitting}
+                      uploadProgress={uploadProgress}
+                    />
+                  </div>
                   <div className="p-5 md:p-6 bg-[#0d89b1]/5 dark:bg-[#0d89b1]/10 rounded-lg border border-[#0d89b1]/20">
                     <p className="text-[10px] md:text-xs text-[#0d89b1] leading-relaxed font-medium">
                       Hero slayder rasmiga matn yozmaslik tavsiya etiladi, chunki sarlavha va tavsif saytda rasm ustiga avtomatik qo'yiladi.

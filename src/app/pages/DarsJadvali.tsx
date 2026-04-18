@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X, Loader2, FileText, Download, Save, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL, getImageUrl } from "../../config/api";
-
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog";
 interface TranslationField {
   document_name: string;
   note: string;
@@ -28,6 +29,7 @@ export default function DarsJadvali() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<TimetableDocument | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
 
   const [formData, setFormData] = useState({
@@ -37,6 +39,7 @@ export default function DarsJadvali() {
     },
     document_file: null as File | string | null,
     sort_order: 0,
+    is_required: false,
   });
 
   const languages = [
@@ -60,8 +63,7 @@ export default function DarsJadvali() {
       if (response.ok) {
         const data = await response.json();
         const results = Array.isArray(data) ? data : data.results || [];
-        // Filter documents that are likely timetables (not required by default)
-        setTimetables(results.filter((doc: any) => !doc.is_required));
+        setTimetables(results);
       }
     } catch (error) {
       toast.error("Ma'lumotlarni yuklashda xatolik");
@@ -79,6 +81,7 @@ export default function DarsJadvali() {
       },
       document_file: null,
       sort_order: timetables.length,
+      is_required: false,
     });
     setIsModalOpen(true);
   };
@@ -92,12 +95,12 @@ export default function DarsJadvali() {
       },
       document_file: item.document_file ? getImageUrl(item.document_file) : null,
       sort_order: item.sort_order,
+      is_required: item.is_required,
     });
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Ushbu jadvalni o'chirmoqchimisiz?")) return;
     try {
       const token = sessionStorage.getItem("auth_token");
       const response = await fetch(`${API_BASE_URL}/admission/documents/${id}/`, {
@@ -107,6 +110,9 @@ export default function DarsJadvali() {
       if (response.ok) {
         toast.success("Jadval o'chirildi");
         fetchTimetables();
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.detail || "O'chirishda xatolik yuz berdi");
       }
     } catch (error) {
       toast.error("Xatolik yuz berdi");
@@ -116,65 +122,78 @@ export default function DarsJadvali() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setUploadProgress(0);
 
     const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
     data.append("sort_order", String(formData.sort_order));
-    data.append("is_required", "false"); // Default for timetable
+    data.append("is_required", formData.is_required ? "true" : "false");
 
     // Translations fields
-    if (formData.translations.uz.document_name) data.append("document_name_uz", formData.translations.uz.document_name);
-    if (formData.translations.uz.note) data.append("note_uz", formData.translations.uz.note);
-    if (formData.translations.ru.document_name) data.append("document_name_ru", formData.translations.ru.document_name);
-    if (formData.translations.ru.note) data.append("note_ru", formData.translations.ru.note);
+    data.append("document_name_uz", formData.translations.uz.document_name || "Hujjat");
+    data.append("note_uz", formData.translations.uz.note || ".");
+    data.append("document_name_ru", formData.translations.ru.document_name || "Документ");
+    data.append("note_ru", formData.translations.ru.note || ".");
+    data.append("document_name_en", "Document");
+    data.append("note_en", ".");
+    data.append("document_name_uz_cyrl", "Ҳужжат");
+    data.append("note_uz_cyrl", ".");
 
     if (formData.document_file instanceof File) {
       data.append("document_file", formData.document_file);
     }
 
-    try {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 15000); // 15 soniya timeout
+    const uploadWithXHR = () => {
+      return new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(progress);
+          }
+        });
 
-      const url = editingItem 
-        ? `${API_BASE_URL}/admission/documents/${editingItem.id}/` 
-        : `${API_BASE_URL}/admission/documents/`;
-      const method = editingItem ? "PATCH" : "POST";
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            const errorData = JSON.parse(xhr.responseText || "{}");
+            reject(new Error(errorData.detail || "Server xatosi"));
+          }
+        });
 
-      const response = await fetch(url, {
-        method,
-        headers: { Authorization: `Bearer ${token}` },
-        body: data,
-        signal: controller.signal,
+        xhr.addEventListener("error", () => reject(new Error("Tarmoq xatosi")));
+
+        const url = editingItem 
+          ? `${API_BASE_URL}/admission/documents/${editingItem.id}/` 
+          : `${API_BASE_URL}/admission/documents/`;
+        const method = editingItem ? "PATCH" : "POST";
+
+        xhr.open(method, url);
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.send(data);
       });
-      clearTimeout(id);
+    };
 
-      if (response.ok) {
-        toast.success(editingItem ? "Jadval tahrirlandi" : "Jadval qo'shildi");
+    try {
+      await uploadWithXHR();
+      setUploadProgress(100);
+      toast.success(editingItem ? "Jadval tahrirlandi" : "Jadval qo'shildi");
+      setTimeout(() => {
         setIsModalOpen(false);
-        fetchTimetables();
-      } else {
-        const errorData = await response.json();
-        const errorMessage = errorData.detail || JSON.stringify(errorData);
-        toast.error(`Xatolik yuz berdi: ${errorMessage}`);
-      }
+        setUploadProgress(0);
+      }, 500);
+      fetchTimetables();
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-        toast.error("Yuklash vaqti tugadi. Iltimos, internet aloqangizni tekshiring yoki keyinroq urinib ko'ring.");
-      } else {
-        toast.error("Server bilan bog'lanishda xatolik");
-      }
+      toast.error(error.message || "Server bilan bog'lanishda xatolik");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-[#0d89b1]" />
-      </div>
-    );
+    return <SkeletonLoader type="grid" />;
   }
 
   return (
@@ -204,8 +223,15 @@ export default function DarsJadvali() {
         {timetables.map((item) => (
           <div key={item.id} className="bg-white dark:bg-[#1f2937] border border-gray-100 dark:border-gray-800 rounded-lg p-5 md:p-6 shadow-sm hover:shadow-md transition-all group">
             <div className="flex items-start justify-between mb-4">
-              <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
-                <FileText className="w-5 h-5 md:w-6 md:h-6" />
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
+                  <FileText className="w-5 h-5 md:w-6 md:h-6" />
+                </div>
+                {item.is_required && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full uppercase tracking-wider">
+                    Majburiy
+                  </span>
+                )}
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md">
@@ -331,7 +357,7 @@ export default function DarsJadvali() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100 dark:border-gray-700">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">PDF Fayl *</label>
                     <input
@@ -342,7 +368,36 @@ export default function DarsJadvali() {
                       required={!editingItem}
                     />
                   </div>
+                  <div className="flex items-center gap-3 pt-6">
+                    <input
+                      type="checkbox"
+                      id="is_required_cb"
+                      checked={formData.is_required}
+                      onChange={(e) => setFormData({ ...formData, is_required: e.target.checked })}
+                      className="w-5 h-5 rounded text-[#0d89b1] focus:ring-[#0d89b1]"
+                    />
+                    <label htmlFor="is_required_cb" className="text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer">
+                      Majburiy hujjat
+                    </label>
+                  </div>
                 </div>
+
+                {isSubmitting && (
+                  <div className="space-y-2 pt-4">
+                    <div className="flex justify-between text-xs font-bold text-[#0d89b1]">
+                      <span>Fayl yuklanmoqda...</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden border border-gray-200 dark:border-gray-700">
+                      <motion.div
+                        className="h-full bg-[#0d89b1] rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${uploadProgress}%` }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700">

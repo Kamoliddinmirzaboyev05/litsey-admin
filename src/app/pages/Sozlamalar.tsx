@@ -4,6 +4,7 @@ import { Save, Loader2, Globe, Phone, Mail, MapPin, Share2, Building, Calendar }
 import { ImageUpload } from "../components/ImageUpload";
 import { toast } from "sonner";
 import { API_BASE_URL, getImageUrl } from "../../config/api";
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
 
 interface Settings {
   id: number;
@@ -77,7 +78,7 @@ export default function Sozlamalar() {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/settings/`);
+      const response = await fetch(`${API_BASE_URL}/settings`);
       if (response.status === 404) {
         setLoading(false);
         return;
@@ -144,7 +145,7 @@ export default function Sozlamalar() {
     }
 
     try {
-      const url = `${API_BASE_URL}/settings/`;
+      const url = `${API_BASE_URL}/settings`;
       const method = settings ? "PATCH" : "POST";
 
       const response = await fetch(url, {
@@ -175,11 +176,7 @@ export default function Sozlamalar() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="w-10 h-10 text-[#0d89b1] animate-spin" />
-      </div>
-    );
+    return <SkeletonLoader type="form" />;
   }
 
   return (
@@ -227,8 +224,9 @@ export default function Sozlamalar() {
                 <ImageUpload
                   label="Logo"
                   value={formData.logo}
-                  onChange={(value) => setFormData({ ...formData, logo: value })}
+                  onChange={(value) => setFormData({ ...formData, logo: value as File })}
                   placeholder="Yuklash"
+                  isUploading={isSaving}
                 />
               </div>
               <div className="md:col-span-2 space-y-6">

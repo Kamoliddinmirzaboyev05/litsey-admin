@@ -2,11 +2,13 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X, AlertCircle, Loader2 } from "lucide-react";
 import { Dialog } from "../components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog";
 import { Switch } from "../components/ui/switch";
 import { toast } from "sonner";
 import { ImageUpload } from "../components/ImageUpload";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { API_BASE_URL, getImageUrl } from "../../config/api";
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
 
 interface AnnouncementTranslation {
   title: string;
@@ -38,6 +40,7 @@ export default function Elonlar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Announcement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<"uz" | "ru">("uz");
 
   const [formData, setFormData] = useState({
@@ -67,7 +70,7 @@ export default function Elonlar() {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/announcements/`, {
+      const response = await fetch(`${API_BASE_URL}/announcements`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -79,7 +82,7 @@ export default function Elonlar() {
     } catch (error) {
       toast.error("Server bilan bog'lanishda xatolik");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -126,28 +129,27 @@ export default function Elonlar() {
   };
 
   const handleDelete = async (slug: string) => {
-    if (confirm("Ushbu e'lonni o'chirmoqchimisiz?")) {
-      try {
-        const token = sessionStorage.getItem("auth_token");
-        const response = await fetch(`${API_BASE_URL}/announcements/${slug}/`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          toast.success("E'lon o'chirildi");
-          fetchAnnouncements();
-        } else {
-          toast.error("O'chirishda xatolik");
-        }
-      } catch (error) {
-        toast.error("Server bilan bog'lanishda xatolik");
+    try {
+      const token = sessionStorage.getItem("auth_token");
+      const response = await fetch(`${API_BASE_URL}/announcements/${slug}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        toast.success("E'lon o'chirildi");
+        fetchAnnouncements();
+      } else {
+        toast.error("O'chirishda xatolik");
       }
+    } catch (error) {
+      toast.error("Server bilan bog'lanishda xatolik");
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setUploadProgress(0);
 
     const token = sessionStorage.getItem("auth_token");
     const data = new FormData();
@@ -180,32 +182,58 @@ export default function Elonlar() {
       data.append("image", formData.image);
     }
 
-    try {
-      const url = editingItem
-        ? `${API_BASE_URL}/announcements/${editingItem.slug}/`
-        : `${API_BASE_URL}/announcements/`;
-      const method = editingItem ? "PATCH" : "POST";
+    const uploadWithXHR = () => {
+      return new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(progress);
+          }
+        });
 
-      const response = await fetch(url, {
-        method,
-        headers: { Authorization: `Bearer ${token}` },
-        body: data,
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            const errorData = JSON.parse(xhr.responseText || "{}");
+            reject(new Error(errorData.detail || "Server xatosi"));
+          }
+        });
+
+        xhr.addEventListener("error", () => reject(new Error("Tarmoq xatosi")));
+
+        const url = editingItem
+          ? `${API_BASE_URL}/announcements/${editingItem.slug}/`
+          : `${API_BASE_URL}/announcements/`;
+        const method = editingItem ? "PATCH" : "POST";
+
+        xhr.open(method, url);
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.send(data);
       });
+    };
 
-      if (response.ok) {
-        toast.success(editingItem ? "E'lon tahrirlandi" : "E'lon qo'shildi");
+    try {
+      await uploadWithXHR();
+      setUploadProgress(100);
+      toast.success(editingItem ? "E'lon tahrirlandi" : "E'lon qo'shildi");
+      setTimeout(() => {
         setIsModalOpen(false);
-        fetchAnnouncements();
-      } else {
-        const errData = await response.json();
-        toast.error(errData.detail || "Xatolik yuz berdi");
-      }
-    } catch (error) {
-      toast.error("Server bilan bog'lanishda xatolik");
+        setUploadProgress(0);
+      }, 500);
+      fetchAnnouncements();
+    } catch (error: any) {
+      toast.error(error.message || "Server bilan bog'lanishda xatolik");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (loading) {
+    return <SkeletonLoader type="table" />;
+  }
 
   return (
     <motion.div
@@ -330,12 +358,27 @@ export default function Elonlar() {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => handleDelete(item.slug)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>E'lonni o'chirish</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Rostdan ham ushbu e'lonni o'chirmoqchimisiz? Bu amal ortga qaytarilmaydi.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(item.slug)} className="bg-red-600 hover:bg-red-700">
+                              Ha, o'chirish
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </td>
                 </tr>
@@ -495,8 +538,10 @@ export default function Elonlar() {
                   <ImageUpload
                     label="Asosiy rasm"
                     value={formData.image}
-                    onChange={(file) => setFormData({ ...formData, image: file })}
+                    onChange={(file) => setFormData({ ...formData, image: file as File })}
                     placeholder="E'lon rasmini yuklash uchun bosing"
+                    isUploading={isSubmitting}
+                    uploadProgress={uploadProgress}
                   />
                 </div>
 

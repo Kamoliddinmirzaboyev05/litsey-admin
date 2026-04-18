@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X, Loader2, Users, Phone, Mail, MapPin, Check, Save } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL } from "../../config/api";
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog";
 
 interface Department {
   id: number;
@@ -70,10 +72,10 @@ export default function Kafedralar() {
     try {
       const token = sessionStorage.getItem("auth_token");
       const [deptRes, teacherRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/departments/`, {
+        fetch(`${API_BASE_URL}/departments`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${API_BASE_URL}/teachers/`, {
+        fetch(`${API_BASE_URL}/teachers`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -136,10 +138,9 @@ export default function Kafedralar() {
   };
 
   const handleDelete = async (slug: string) => {
-    if (!confirm("Ushbu kafedrani o'chirmoqchimisiz?")) return;
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/departments/${slug}/`, {
+      const response = await fetch(`${API_BASE_URL}/departments/${slug}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -183,8 +184,8 @@ export default function Kafedralar() {
 
     try {
       const url = editingDept
-        ? `${API_BASE_URL}/departments/${editingDept.slug}/`
-        : `${API_BASE_URL}/departments/`;
+        ? `${API_BASE_URL}/departments/${editingDept.slug}`
+        : `${API_BASE_URL}/departments`;
       const method = editingDept ? "PATCH" : "POST";
 
       const response = await fetch(url, {
@@ -212,11 +213,7 @@ export default function Kafedralar() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-[#0d89b1]" />
-      </div>
-    );
+    return <SkeletonLoader type="grid" />;
   }
 
   return (
@@ -269,12 +266,27 @@ export default function Kafedralar() {
               >
                 <Edit className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => handleDelete(dept.slug)}
-                className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 transition-colors shadow-sm"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 transition-colors shadow-sm">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Kafedrani o'chirish</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Rostdan ham ushbu kafedrani o'chirmoqchimisiz? Bu amal ortga qaytarilmaydi.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleDelete(dept.slug)} className="bg-red-600 hover:bg-red-700">
+                      Ha, o'chirish
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
 
             <div className="flex items-center gap-4 mb-6">

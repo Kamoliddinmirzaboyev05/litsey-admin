@@ -18,6 +18,7 @@ import {
   Grid3x3,
   HelpCircle,
   BarChart3,
+  Film,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -32,6 +33,7 @@ const navItems = [
   { path: "/statistika", label: "Statistika", icon: BarChart3 },
   { path: "/qabul", label: "Qabul", icon: UserPlus },
   { path: "/galereya", label: "Galereya", icon: Image },
+  { path: "/videolar", label: "Videolar", icon: Film },
   { path: "/slayderlar", label: "Slayderlar", icon: LayoutDashboard },
   { path: "/sozlamalar", label: "Sozlamalar", icon: Settings },
 ];

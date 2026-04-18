@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, X, Loader2, BarChart3, Save, Trash, Users, Book, Trophy, GraduationCap, School, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL } from "../../config/api";
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog";
 
 const ICON_MAP: Record<string, any> = {
   users: Users,
@@ -63,7 +65,7 @@ export default function Statistika() {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/statistics/`, {
+      const response = await fetch(`${API_BASE_URL}/statistics`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -104,10 +106,9 @@ export default function Statistika() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Ushbu statistikani o'chirmoqchimisiz?")) return;
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/statistics/${id}/`, {
+      const response = await fetch(`${API_BASE_URL}/statistics/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -127,8 +128,8 @@ export default function Statistika() {
     const token = sessionStorage.getItem("auth_token");
     try {
       const url = editingStat
-        ? `${API_BASE_URL}/statistics/${editingStat.id}/`
-        : `${API_BASE_URL}/statistics/`;
+        ? `${API_BASE_URL}/statistics/${editingStat.id}`
+        : `${API_BASE_URL}/statistics`;
       const method = editingStat ? "PATCH" : "POST";
 
       const response = await fetch(url, {
@@ -156,11 +157,7 @@ export default function Statistika() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-[#0d89b1]" />
-      </div>
-    );
+    return <SkeletonLoader type="grid" />;
   }
 
   return (

@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL, getImageUrl } from "../../config/api";
+import { PageSkeleton as SkeletonLoader } from "../components/PageSkeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog";
 
 interface AdmissionData {
   id: number;
@@ -130,7 +132,7 @@ export default function Qabul() {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/admission/current/`, {
+      const response = await fetch(`${API_BASE_URL}/admission/current`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -179,7 +181,7 @@ export default function Qabul() {
     try {
       const token = sessionStorage.getItem("auth_token");
       
-      const url = `${API_BASE_URL}/admission/current/`;
+      const url = `${API_BASE_URL}/admission/current`;
       const method = "PUT";
       
       // Prepare payload with correct types
@@ -260,10 +262,9 @@ export default function Qabul() {
   };
 
   const handleDeleteDoc = async (id: number) => {
-    if (!confirm("Ushbu hujjatni o'chirmoqchimisiz?")) return;
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/admission/documents/${id}/`, {
+      const response = await fetch(`${API_BASE_URL}/admission/documents/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -295,8 +296,8 @@ export default function Qabul() {
 
     try {
       const url = editingDoc 
-        ? `${API_BASE_URL}/admission/documents/${editingDoc.id}/` 
-        : `${API_BASE_URL}/admission/documents/`;
+        ? `${API_BASE_URL}/admission/documents/${editingDoc.id}` 
+        : `${API_BASE_URL}/admission/documents`;
       const method = editingDoc ? "PATCH" : "POST";
 
       const response = await fetch(url, {
@@ -349,10 +350,9 @@ export default function Qabul() {
   };
 
   const handleDeleteSub = async (id: number) => {
-    if (!confirm("Ushbu fanni o'chirmoqchimisiz?")) return;
     try {
       const token = sessionStorage.getItem("auth_token");
-      const response = await fetch(`${API_BASE_URL}/admission/subjects/${id}/`, {
+      const response = await fetch(`${API_BASE_URL}/admission/subjects/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -372,8 +372,8 @@ export default function Qabul() {
     const token = sessionStorage.getItem("auth_token");
     try {
       const url = editingSub 
-        ? `${API_BASE_URL}/admission/subjects/${editingSub.id}/` 
-        : `${API_BASE_URL}/admission/subjects/`;
+        ? `${API_BASE_URL}/admission/subjects/${editingSub.id}` 
+        : `${API_BASE_URL}/admission/subjects`;
       const method = editingSub ? "PATCH" : "POST";
 
       const response = await fetch(url, {
@@ -400,11 +400,7 @@ export default function Qabul() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-[#0d89b1]" />
-      </div>
-    );
+    return <SkeletonLoader type="grid" />;
   }
 
   return (
