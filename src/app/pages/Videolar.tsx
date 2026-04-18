@@ -20,14 +20,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 interface VideoItem {
   id: number;
-  title_uz: string;
-  title_ru?: string;
-  title_en?: string;
-  title_uz_cyrl?: string;
-  description_uz?: string;
-  description_ru?: string;
-  description_en?: string;
-  description_uz_cyrl?: string;
+  translations: {
+    uz: { title: string; description: string };
+    ru: { title: string; description: string };
+    en: { title: string; description: string };
+    uz_cyrl: { title: string; description: string };
+  };
   video_file: string;
   thumbnail?: string;
   is_active?: boolean;
@@ -99,7 +97,7 @@ export default function Videolar() {
   };
 
   const filteredVideos = videos.filter((v) =>
-    (v.title_uz || "").toLowerCase().includes(searchQuery.toLowerCase()),
+    (v.translations.uz.title || "").toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const handleAdd = () => {
@@ -125,14 +123,14 @@ export default function Videolar() {
   const handleEdit = (video: VideoItem) => {
     setEditingVideo(video);
     setFormData({
-      title_uz: video.title_uz || "",
-      title_ru: video.title_ru || "",
-      title_en: video.title_en || "",
-      title_uz_cyrl: video.title_uz_cyrl || "",
-      description_uz: video.description_uz || "",
-      description_ru: video.description_ru || "",
-      description_en: video.description_en || "",
-      description_uz_cyrl: video.description_uz_cyrl || "",
+      title_uz: video.translations.uz.title || "",
+      title_ru: video.translations.ru.title || "",
+      title_en: video.translations.en.title || "",
+      title_uz_cyrl: video.translations.uz_cyrl.title || "",
+      description_uz: video.translations.uz.description || "",
+      description_ru: video.translations.ru.description || "",
+      description_en: video.translations.en.description || "",
+      description_uz_cyrl: video.translations.uz_cyrl.description || "",
       is_active: video.is_active !== false,
       sort_order: video.sort_order || 0,
       video_file: video.video_file || null,
@@ -302,7 +300,7 @@ export default function Videolar() {
                 {video.thumbnail ? (
                   <img
                     src={video.thumbnail}
-                    alt={video.title_uz}
+                    alt={video.translations?.uz?.title || "Video"}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
@@ -357,13 +355,13 @@ export default function Videolar() {
               <div className="p-5 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="font-bold text-gray-900 dark:text-white text-lg line-clamp-1">
-                    {video.title_uz}
+                    {video.translations?.uz?.title || "Nomsiz video"}
                   </h3>
                   <span className={`w-2 h-2 rounded-full ${video.is_active ? 'bg-green-500' : 'bg-red-500'}`} />
                 </div>
-                {video.description_uz && (
+                {video.translations?.uz?.description && (
                   <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-2">
-                    {video.description_uz}
+                    {video.translations.uz.description}
                   </p>
                 )}
               </div>
